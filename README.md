@@ -1,6 +1,6 @@
 # Axon Servo Programmer for macOS
 
-An unofficial Mac app for programming **Axon servos** with the Axon USB programmer. Built for FTC teams who don't want to borrow a Windows laptop just to change a servo setting.
+An unofficial Mac app for programming **Axon servos** with the Axon USB programmer.
 
 > Not affiliated with or endorsed by Axon. Written from scratch by studying how the official Windows tool (v1.0.5) talks to the programmer.
 
