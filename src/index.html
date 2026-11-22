@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+  <title>Axon Servo Programmer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="drag"></div>
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M16 16 L16 5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="16" r="3.2" fill="currentColor"/></svg>
+        </div>
+        <div>
+          <div class="brand-title">Axon Programmer</div>
+          <div class="brand-sub">for macOS</div>
+        </div>
+      </div>
+
+      <div class="status" id="status">
+        <span class="dot"></span>
+        <div>
+          <div class="status-title" id="statusTitle">Looking for programmer…</div>
+          <div class="status-sub" id="statusSub">Plug in the Axon USB programmer</div>
+        </div>
+      </div>
+
+      <section class="servo-card" id="servoCard" hidden>
+        <div class="servo-name" id="servoName">—</div>
+        <dl>
+          <dt>Type</dt><dd id="servoFamily">—</dd>
+          <dt>Firmware</dt><dd id="servoVersion">—</dd>
+          <dt>Made</dt><dd id="servoMade">—</dd>
+        </dl>
+      </section>
+
+      <div class="side-actions">
+        <button class="btn" id="btnRead" disabled>
+          <svg viewBox="0 0 20 20"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Read from Servo
+        </button>
+        <button class="btn primary" id="btnWrite" disabled>
+          <svg viewBox="0 0 20 20"><path d="M10 15V5m0 0-4 4m4-4 4 4M4 16h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span id="btnWriteLabel">Write to Servo</span>
+        </button>
+        <button class="btn subtle" id="btnRevert" disabled>Discard Changes</button>
+      </div>
+
+      <div class="side-footer">
+        <button class="link" id="btnProfileOpen">Open Profile…</button>
+        <button class="link" id="btnProfileSave" disabled>Save Profile…</button>
+        <button class="link" id="btnRestore">Restore Backup…</button>
+        <button class="link danger" id="btnFactory" disabled>Factory Reset…</button>
+        <button class="link" id="btnLog">Activity Log</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="drag top"></div>
+
+      <div class="empty" id="empty">
+        <div class="empty-art" aria-hidden="true">
+          <svg viewBox="0 0 120 80"><rect x="8" y="22" width="56" height="36" rx="8" fill="none" stroke="currentColor" stroke-width="3"/><rect x="64" y="32" width="14" height="16" rx="2" fill="currentColor" opacity=".35"/><path d="M78 40 h30" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 7"/><circle cx="36" cy="40" r="9" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+        </div>
+        <h1 id="emptyTitle">Connect your servo</h1>
+        <p id="emptyText">Plug the Axon programmer into a USB port, connect a servo to it, then press <b>Read from Servo</b>.</p>
+        <div class="empty-actions">
+          <button class="btn primary" id="btnConnect">Connect Programmer</button>
+          <button class="btn subtle" id="btnDemo">Try Demo Mode</button>
+        </div>
+      </div>
+
+      <div class="editor" id="editor" hidden>
+        <header class="editor-head">
+          <div>
+            <h1 id="editorTitle">Servo Settings</h1>
+            <p class="muted" id="editorSub">Changes are only sent when you press Write.</p>
+          </div>
+          <div class="pill" id="demoPill" hidden>Demo mode — no hardware</div>
+        </header>
+        <div class="grid" id="form"></div>
+      </div>
+
+      <div class="log" id="log" hidden>
+        <div class="log-head"><span>Activity</span><button class="link" id="btnLogClose">Close</button></div>
+        <pre id="logBody"></pre>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-wrap" id="toasts"></div>
+
+  <div class="sheet-backdrop" id="sheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <h2 id="sheetTitle"></h2>
+      <div id="sheetBody"></div>
+      <div class="sheet-actions" id="sheetActions"></div>
+    </div>
+  </div>
+
+  <script src="protocol.js"></script>
+  <script src="hid.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
