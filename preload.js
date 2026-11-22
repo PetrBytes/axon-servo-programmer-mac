@@ -3,7 +3,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 const invoke = (ch, ...a) => ipcRenderer.invoke(ch, ...a);
 
+let initial = {};
+try { initial = ipcRenderer.sendSync('settings:sync') || {}; } catch { /* ignore */ }
+
 contextBridge.exposeInMainWorld('native', {
+  initial,
+  onQuitHint: (fn) => ipcRenderer.on('quit-hint', () => fn()),
   appInfo: () => invoke('app:info'),
   openRepo: () => invoke('open:repo'),
   openBackups: () => invoke('open:backups'),

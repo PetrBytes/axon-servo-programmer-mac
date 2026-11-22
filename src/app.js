@@ -9,7 +9,7 @@
     get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
     set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* ignore */ } },
   };
-  const DEFAULTS = { theme: 'system', glass: 60, showLog: true, autoRead: true, showDemo: true, logRetention: 'forever', autoUpdate: true, updateInterval: 'daily', includePrerelease: true, skippedVersion: '', onboarded: false };
+  const DEFAULTS = { theme: 'system', glass: 60, showLog: true, autoRead: true, showDemo: true, logRetention: 'forever', autoUpdate: true, updateInterval: '6h', includePrerelease: true, skippedVersion: '', onboarded: false, doubleQuit: true };
   const native = window.native || {
     appInfo: async () => ({ version: '1.2.0-dev', repo: 'https://github.com/PetrBytes/axon-servo-programmer-mac' }),
     openRepo: async () => window.open('https://github.com/PetrBytes/axon-servo-programmer-mac'),
@@ -32,6 +32,7 @@
     listBackups: async () => [],
     confirm: async ({ message }) => window.confirm(message),
     onMenu: () => {},
+    onQuitHint: () => {},
     update: (() => {
       let s = { status: 'idle' }; const subs = [];
       const set = (p) => { s = { ...s, ...p }; subs.forEach((f) => f(s)); return s; };
@@ -819,6 +820,7 @@
     switch (u && u.status) {
       case 'checking': sub = 'Checking for updates…'; break;
       case 'uptodate': sub = `You’re up to date (${st.version}) · checked ${ago(u.checkedAt || Date.now())}`; btn('Check Now', '', checkUpdates); break;
+      case 'idle': sub = `Version ${st.version} · checks automatically when the app opens`; btn('Check for Updates', '', checkUpdates); break;
       case 'error': sub = `Couldn’t check: ${u.error}`; btn('Try Again', '', checkUpdates); break;
       case 'available':
         btn('Download & Install', 'primary', async () => { await native.update.download(); });
@@ -862,12 +864,14 @@
     document.querySelectorAll('.prefs-pane').forEach((p) => { p.hidden = p.dataset.pane !== name; });
     if (name === 'data') refreshDataInfo();
   }
-  async function refreshDataInfo() {
+  async function refreshDataInfo(flash) {
     $('prefLogInfo').textContent = `${st.logCount} entr${st.logCount === 1 ? 'y' : 'ies'}.`;
     const [cs, ls, bs, n] = await Promise.all([native.cacheSize(), native.logSize(), native.backupsSize(), native.countBackups()].map((p) => p.catch(() => 0)));
-    $('cacheSize').textContent = fmtBytes(cs || 0);
-    $('logSize').textContent = fmtBytes(ls || 0);
-    $('backupSize').textContent = fmtBytes(bs || 0);
+    [['cacheSize', cs], ['logSize', ls], ['backupSize', bs]].forEach(([id, v]) => {
+      const e = $(id), txt = fmtBytes(v || 0);
+      if (flash && e.textContent !== txt) { e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash'); }
+      e.textContent = txt;
+    });
     $('prefBackupInfo').textContent = n ? `${n} saved automatically when servos were read.` : 'None yet. One is saved every time a servo is read.';
   }
   function syncPrefs() {
@@ -880,6 +884,7 @@
     $('prefUpdateInterval').value = st.settings.updateInterval;
     $('prefUpdateInterval').disabled = !st.settings.autoUpdate;
     $('prefPre').checked = st.settings.includePrerelease;
+    $('prefDoubleQuit').checked = st.settings.doubleQuit !== false;
     $('glassRange').value = st.settings.glass ?? 60;
     $('glassGroup').hidden = st.settings.theme !== 'glass';
   }
@@ -930,31 +935,44 @@
   pref('prefShowDemo', 'showDemo', undefined, () => { if (st.mode === 'none' && !st.servo) setEmptyButtons(true); });
   pref('prefAutoUpdate', 'autoUpdate');
   pref('prefPre', 'includePrerelease');
+  pref('prefDoubleQuit', 'doubleQuit');
   pref('prefRetention', 'logRetention', (e) => e.target.value);
   pref('prefUpdateInterval', 'updateInterval', (e) => e.target.value);
   $('glassRange').addEventListener('input', (e) => { document.documentElement.style.setProperty('--glass', String(e.target.value / 100)); });
   $('glassRange').addEventListener('change', async (e) => { st.settings = await native.setSettings({ glass: +e.target.value }); });
-  $('prefClearLog').addEventListener('click', async () => {
-    const ok = await native.confirm({ message: 'Clear the activity log?', detail: `All ${st.logCount} entries will be deleted.`, ok: 'Clear Log', destructive: true });
-    if (!ok) return;
-    await native.clearLog();
-    await loadLog();
-    refreshDataInfo();
-    toast('Activity log cleared', 'ok', { quiet: true });
-  });
-  $('prefClearCache').addEventListener('click', async () => {
-    const r = await native.clearCache();
-    refreshDataInfo();
-    toast(`Cache cleared${r && r.freed ? ` · freed ${fmtBytes(r.freed)}` : ''}`, 'ok', { quiet: true });
-  });
+  /**
+   * Runs a Settings action with clear feedback: optional confirmation, a working
+   * state on the button, then "✓ Done" on the button and refreshed sizes.
+   */
+  async function runAction(btn, { confirm, work, done }) {
+    if (btn.disabled) return;
+    if (confirm && !(await native.confirm(await confirm()))) return;
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Working…';
+    let result;
+    try { result = await work(); } catch (e) { btn.textContent = label; btn.disabled = false; toast(`Couldn’t finish: ${e.message}`, 'bad'); return; }
+    await refreshDataInfo(true);
+    btn.classList.add('done');
+    btn.textContent = `✓ ${typeof done === 'function' ? done(result) : done}`;
+    setTimeout(() => { btn.classList.remove('done'); btn.textContent = label; btn.disabled = false; }, 2600);
+  }
+  $('prefClearCache').addEventListener('click', (e) => runAction(e.currentTarget, {
+    confirm: async () => ({ message: 'Clear the cache?', detail: `It’s using ${fmtBytes(await native.cacheSize().catch(() => 0))}. Your settings, activity log and servo backups are kept.`, ok: 'Clear Cache' }),
+    work: () => native.clearCache(),
+    done: (r) => (r && r.freed ? `Freed ${fmtBytes(r.freed)}` : 'Cleared'),
+  }));
+  $('prefClearLog').addEventListener('click', (e) => runAction(e.currentTarget, {
+    confirm: async () => ({ message: 'Clear the activity log?', detail: `All ${st.logCount} entries will be deleted. This can’t be undone.`, ok: 'Clear Log', destructive: true }),
+    work: async () => { await native.clearLog(); await loadLog(); },
+    done: 'Cleared',
+  }));
+  $('prefClearBackups').addEventListener('click', (e) => runAction(e.currentTarget, {
+    confirm: async () => ({ message: 'Delete all servo backups?', detail: 'You won’t be able to restore old settings from them. This can’t be undone.', ok: 'Delete All', destructive: true }),
+    work: () => native.clearBackups(),
+    done: (n) => `Deleted ${n || 0}`,
+  }));
   $('prefShowBackups').addEventListener('click', () => native.openBackups());
-  $('prefClearBackups').addEventListener('click', async () => {
-    const ok = await native.confirm({ message: 'Delete all servo backups?', detail: 'You won’t be able to restore old settings from them. This can’t be undone.', ok: 'Delete All', destructive: true });
-    if (!ok) return;
-    const n = await native.clearBackups();
-    refreshDataInfo();
-    toast(`Deleted ${n} backup${n === 1 ? '' : 's'}`, 'ok', { quiet: true });
-  });
   $('prefShowWelcome').addEventListener('click', openWelcome);
   $('prefsDone').addEventListener('click', closePrefs);
   $('prefs').addEventListener('mousedown', (e) => { if (e.target === $('prefs')) closePrefs(); });
@@ -963,6 +981,13 @@
   $('aboutCheck').addEventListener('click', () => { prefsTab('updates'); checkUpdates(); });
   $('welcomeGo').addEventListener('click', finishWelcome);
   native.update.onState(renderUpdate);
+  let quitHintTimer = null;
+  native.onQuitHint(() => {
+    const h = $('quitHint');
+    h.hidden = false; h.classList.remove('out');
+    clearTimeout(quitHintTimer);
+    quitHintTimer = setTimeout(() => { h.classList.add('out'); setTimeout(() => { h.hidden = true; }, 200); }, 1400);
+  });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !$('prefs').hidden) { closePrefs(); return; }

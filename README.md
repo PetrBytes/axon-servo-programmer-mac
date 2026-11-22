@@ -112,6 +112,8 @@ The byte layout of the parameter block is documented in [`src/protocol.js`](src/
 - `scripts/mkudzo.py` – builds a compressed `.dmg` on Linux (`zlib` or `bzip2`)
 
 ## Changelog
+**1.4.0** – Update check on every launch plus periodic re-checks, confirm-and-result feedback for Clear Cache/Log/Backups, automatic cleanup of update leftovers and large caches, press ⌘Q twice to quit, no white flash on launch, new scrollbar, centred overload values.
+
 **1.3.0** – Big CPU/GPU/memory reduction (static theme backgrounds, no live blur, Chromium features trimmed), background polling backoff, snappier UI, button wrapping fix, releases now built and published automatically by GitHub Actions.
 
 **1.2.0** – Update checker and installer, new themes (Midnight, Aurora, Sunset, Liquid Glass), one-screen first-launch setup, extra write safety checks, log opens on a new session with history above and retention options, cache size in Settings, demo button toggle, exit to start screen, confirmations for Discard and quitting with unsaved changes, ⌘W no longer closes the app, Write button shows a change count.

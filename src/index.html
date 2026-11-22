@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
   <title>Axon Servo Programmer</title>
+  <script src="theme-boot.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -131,6 +132,7 @@
   </div>
 
   <div class="toast-wrap" id="toasts"></div>
+  <div class="quit-hint" id="quitHint" hidden>Press <kbd>⌘Q</kbd> again to quit</div>
 
   <!-- generic sheet -->
   <div class="sheet-backdrop" id="sheet" hidden>
@@ -194,6 +196,7 @@
           <h3>Behaviour</h3>
           <div class="prefs-group">
             <label class="prefs-row"><div><div class="row-label">Read servo automatically when plugged in</div><div class="row-help">Same as the Windows software. Skipped if you have unsaved changes.</div></div><span class="switch"><input type="checkbox" id="prefAutoRead"><span></span></span></label>
+            <label class="prefs-row"><div><div class="row-label">Press ⌘Q twice to quit</div><div class="row-help">Stops accidental quits, like Chrome. Quitting from the Dock still works straight away.</div></div><span class="switch"><input type="checkbox" id="prefDoubleQuit"><span></span></span></label>
             <label class="prefs-row"><div><div class="row-label">Show “Try Demo Mode” button</div><div class="row-help">Demo Mode is always available from the Servo menu.</div></div><span class="switch"><input type="checkbox" id="prefShowDemo"><span></span></span></label>
           </div>
           <h3>Activity log</h3>
@@ -226,8 +229,8 @@
           <h3>Automatic updates</h3>
           <div class="prefs-group">
             <label class="prefs-row"><div><div class="row-label">Check for updates automatically</div></div><span class="switch"><input type="checkbox" id="prefAutoUpdate"><span></span></span></label>
-            <div class="prefs-row"><div><div class="row-label">How often</div></div>
-              <select id="prefUpdateInterval"><option value="launch">Every launch</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select>
+            <div class="prefs-row"><div><div class="row-label">Check again every</div><div class="row-help">Always checks when the app opens, then again while it stays open.</div></div>
+              <select id="prefUpdateInterval"><option value="hourly">Hour</option><option value="6h">6 hours</option><option value="daily">Day</option><option value="weekly">Week</option></select>
             </div>
             <label class="prefs-row"><div><div class="row-label">Include pre-releases</div><div class="row-help">Get new versions sooner. They may be less tested.</div></div><span class="switch"><input type="checkbox" id="prefPre"><span></span></span></label>
           </div>
@@ -235,7 +238,7 @@
         <section class="prefs-pane" data-pane="data" hidden>
           <h3>Storage</h3>
           <div class="prefs-group">
-            <div class="prefs-row"><div><div class="row-label">Cache <span class="size" id="cacheSize">…</span></div><div class="row-help">Temporary browser-engine files and downloaded updates. Safe to clear.</div></div><button class="btn small" id="prefClearCache">Clear Cache</button></div>
+            <div class="prefs-row"><div><div class="row-label">Cache <span class="size" id="cacheSize">…</span></div><div class="row-help">Temporary browser-engine files and downloaded updates. Cleared automatically when it gets large and after updates.</div></div><button class="btn small" id="prefClearCache">Clear Cache</button></div>
             <div class="prefs-row"><div><div class="row-label">Activity log <span class="size" id="logSize">…</span></div><div class="row-help" id="prefLogInfo">—</div></div><button class="btn small" id="prefClearLog">Clear Log…</button></div>
             <div class="prefs-row"><div><div class="row-label">Servo backups <span class="size" id="backupSize">…</span></div><div class="row-help" id="prefBackupInfo">—</div></div><div class="btn-row"><button class="btn small" id="prefShowBackups">Show in Finder</button><button class="btn small danger" id="prefClearBackups">Delete All…</button></div></div>
           </div>

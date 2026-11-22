@@ -29,11 +29,12 @@ const settingsFile = () => dataPath('settings.json');
 
 const THEMES = ['system', 'light', 'dark', 'midnight', 'aurora', 'sunset', 'glass'];
 const LOG_RETENTION = ['forever', 'session', 'last100', 'last500', 'last1000', 'days7', 'days30'];
-const UPDATE_INTERVALS = { launch: 0, daily: 24 * 3600e3, weekly: 7 * 24 * 3600e3 };
+// The app always checks shortly after launch; this is how often it re-checks while open.
+const UPDATE_INTERVALS = { hourly: 3600e3, '6h': 6 * 3600e3, daily: 24 * 3600e3, weekly: 7 * 24 * 3600e3 };
 const DEFAULT_SETTINGS = {
   theme: 'system', glass: 60, showLog: true, autoRead: true, showDemo: true,
-  logRetention: 'forever', autoUpdate: true, updateInterval: 'daily', includePrerelease: true,
-  lastUpdateCheck: 0, skippedVersion: '', onboarded: false,
+  logRetention: 'forever', autoUpdate: true, updateInterval: '6h', includePrerelease: true,
+  lastUpdateCheck: 0, skippedVersion: '', onboarded: false, doubleQuit: true,
 };
 const themeSourceFor = (t) => (t === 'light' ? 'light' : ['dark', 'midnight', 'aurora', 'sunset'].includes(t) ? 'dark' : 'system');
 let settings = { ...DEFAULT_SETTINGS };
@@ -42,6 +43,7 @@ function loadSettings() {
   try { settings = { ...DEFAULT_SETTINGS, ...JSON.parse(fss.readFileSync(settingsFile(), 'utf8')) }; }
   catch { settings = { ...DEFAULT_SETTINGS }; }
   if (!THEMES.includes(settings.theme)) settings.theme = 'system';
+  if (!(settings.updateInterval in UPDATE_INTERVALS)) settings.updateInterval = '6h'; // migrate old 'launch'
   nativeTheme.themeSource = themeSourceFor(settings.theme);
 }
 async function saveSettings() {
@@ -154,6 +156,16 @@ function confirmQuitSync() {
 }
 app.on('before-quit', (e) => { if (!confirmQuitSync()) e.preventDefault(); else allowQuit = true; });
 
+// ⌘Q must be pressed twice within 1.5 s (like Chrome's "press ⌘Q again to quit").
+// Quitting from the Dock or at shutdown is unaffected.
+let lastQuitPress = 0;
+function quitShortcut() {
+  const now = Date.now();
+  if (!settings.doubleQuit || now - lastQuitPress < 1500 || !win || win.isDestroyed()) { app.quit(); return; }
+  lastQuitPress = now;
+  win.webContents.send('quit-hint');
+}
+
 function buildMenu() {
   const send = (ch) => () => win && win.webContents.send('menu', ch);
   const template = [
@@ -169,7 +181,7 @@ function buildMenu() {
         { type: 'separator' },
         { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
         { type: 'separator' },
-        { role: 'quit' },
+        { label: 'Quit Axon Servo Programmer', accelerator: 'CmdOrCtrl+Q', click: quitShortcut },
       ],
     },
     {
@@ -219,11 +231,12 @@ ipcMain.handle('open:repo', () => shell.openExternal(REPO_URL));
 ipcMain.handle('open:backups', async () => { await fs.mkdir(backupsDir(), { recursive: true }); return shell.openPath(backupsDir()); });
 
 ipcMain.handle('settings:get', () => settings);
+ipcMain.on('settings:sync', (e) => { e.returnValue = { theme: settings.theme, glass: settings.glass, dark: nativeTheme.shouldUseDarkColors }; });
 ipcMain.handle('settings:set', async (_e, patch = {}) => {
   const next = { ...settings };
   if (THEMES.includes(patch.theme)) next.theme = patch.theme;
   if (Number.isFinite(patch.glass)) next.glass = Math.max(0, Math.min(100, Math.round(patch.glass)));
-  for (const k of ['showLog', 'autoRead', 'showDemo', 'autoUpdate', 'includePrerelease', 'onboarded']) if (typeof patch[k] === 'boolean') next[k] = patch[k];
+  for (const k of ['showLog', 'autoRead', 'showDemo', 'autoUpdate', 'includePrerelease', 'onboarded', 'doubleQuit']) if (typeof patch[k] === 'boolean') next[k] = patch[k];
   if (LOG_RETENTION.includes(patch.logRetention)) next.logRetention = patch.logRetention;
   if (patch.updateInterval in UPDATE_INTERVALS) next.updateInterval = patch.updateInterval;
   if (typeof patch.skippedVersion === 'string') next.skippedVersion = patch.skippedVersion.slice(0, 40);
@@ -259,6 +272,28 @@ async function cacheSize() {
   return total;
 }
 ipcMain.handle('cache:size', () => cacheSize());
+
+/* Automatic tidy-up at launch: leftovers from updates and an oversized cache. */
+const CACHE_AUTO_CLEAR_BYTES = 150 * 1024 * 1024;
+async function cleanupOnLaunch() {
+  // 1. Downloaded update DMGs / staged apps from a previous update.
+  await fs.rm(updater.workDir(), { recursive: true, force: true });
+  // 2. Any old app copy the swap helper couldn't remove.
+  const bundle = path.resolve(process.execPath, '..', '..', '..');
+  if (bundle.endsWith('.app')) {
+    try {
+      for (const f of await fs.readdir(path.dirname(bundle))) {
+        if (f.startsWith('.axon-old-') && f.endsWith('.app')) await fs.rm(path.join(path.dirname(bundle), f), { recursive: true, force: true });
+      }
+    } catch { /* no access */ }
+  }
+  // 3. If Chromium's caches have grown large, clear them.
+  if (await cacheSize() > CACHE_AUTO_CLEAR_BYTES && win) {
+    const ses = win.webContents.session;
+    await ses.clearCache();
+    try { await ses.clearCodeCaches({}); } catch { /* older Electron */ }
+  }
+}
 ipcMain.handle('cache:clear', async () => {
   const before = await cacheSize();
   const ses = win.webContents.session;
@@ -374,11 +409,11 @@ function scheduleUpdateChecks() {
   if (updateTimer) clearInterval(updateTimer);
   updateTimer = null;
   if (!settings.autoUpdate) return;
-  const due = () => {
-    const iv = UPDATE_INTERVALS[settings.updateInterval] ?? UPDATE_INTERVALS.daily;
-    return iv === 0 ? false : Date.now() - (settings.lastUpdateCheck || 0) >= iv;
-  };
-  updateTimer = setInterval(() => { if (settings.autoUpdate && due()) checkForUpdates(); }, 3600e3);
+  // Wake every 10 minutes and check if the chosen interval has passed (cheap: no network unless due).
+  updateTimer = setInterval(() => {
+    const iv = UPDATE_INTERVALS[settings.updateInterval] || UPDATE_INTERVALS['6h'];
+    if (settings.autoUpdate && Date.now() - (settings.lastUpdateCheck || 0) >= iv) checkForUpdates();
+  }, 10 * 60e3);
 }
 
 ipcMain.handle('update:state', () => updateState);
@@ -431,10 +466,9 @@ app.whenReady().then(() => {
   buildMenu();
   createWindow();
   scheduleUpdateChecks();
-  if (settings.autoUpdate) {
-    const iv = UPDATE_INTERVALS[settings.updateInterval] ?? UPDATE_INTERVALS.daily;
-    if (iv === 0 || Date.now() - (settings.lastUpdateCheck || 0) >= iv) setTimeout(() => checkForUpdates(), 8000);
-  }
+  cleanupOnLaunch().catch(() => {});
+  // Like most apps: always look for an update shortly after launch.
+  if (settings.autoUpdate) setTimeout(() => checkForUpdates(), 3000);
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on('window-all-closed', () => app.quit());

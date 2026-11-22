@@ -265,6 +265,7 @@ input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; margin-top: -7px; box-shadow: 0 0 0 0.5px rgba(0,0,0,.25), 0 2px 5px rgba(0,0,0,.25); transition: transform .1s; }
 input[type=range]:active::-webkit-slider-thumb { transform: scale(1.12); }
 .mini-range { flex: none; width: 160px; }
+.num::-webkit-outer-spin-button, .num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .num { width: 70px; height: 26px; border-radius: 6px; border: 1px solid var(--line); background: var(--field); color: var(--text); text-align: right; padding: 0 8px; font: inherit; font-variant-numeric: tabular-nums; user-select: text; }
 
 .seg { display: inline-flex; background: var(--field); border-radius: 8px; padding: 2px; gap: 2px; flex-wrap: wrap; }
@@ -284,10 +285,11 @@ input[type=range]:active::-webkit-slider-thumb { transform: scale(1.12); }
 
 select { height: 28px; border-radius: 7px; border: 1px solid var(--line); background: var(--field); color: var(--text); padding: 0 8px; font: inherit; }
 
-.levels { border-collapse: collapse; margin-top: 4px; }
-.levels th { text-align: left; color: var(--muted); font-weight: 550; font-size: 11.5px; padding: 4px 18px 4px 0; }
-.levels td { padding: 4px 18px 4px 0; }
-.levels .num { width: 86px; }
+.levels { border-collapse: separate; border-spacing: 14px 6px; margin: 2px -14px 0; }
+.levels th { color: var(--muted); font-weight: 550; font-size: 11.5px; padding: 0; text-align: center; }
+.levels th:first-child, .levels td:first-child { text-align: left; padding-right: 6px; white-space: nowrap; }
+.levels td { padding: 0; vertical-align: middle; }
+.levels .num { width: 96px; height: 30px; text-align: center; padding: 0 10px; font-size: 13px; }
 
 /* ================================================================ toasts */
 .toast-wrap { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 40; pointer-events: none; }
@@ -385,3 +387,25 @@ select { height: 28px; border-radius: 7px; border: 1px solid var(--line); backgr
 .about-name { font-weight: 700; font-size: 18px; margin-top: 4px; }
 .about-ver { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
 .about-note { color: var(--muted); max-width: 400px; margin: 12px 0 14px; font-size: 12px; }
+
+/* ================================================================ v1.4 polish */
+/* Slim, rounded scrollbar for the main area (matches macOS overlay style). */
+.content { scrollbar-gutter: stable; }
+.content::-webkit-scrollbar { width: 12px; }
+.content::-webkit-scrollbar-track { background: transparent; }
+.content::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; border: 3px solid transparent; background-clip: content-box; min-height: 40px; }
+.content:hover::-webkit-scrollbar-thumb { background-color: rgba(128, 128, 128, .35); }
+.content::-webkit-scrollbar-thumb:hover { background-color: rgba(128, 128, 128, .55); }
+.content::-webkit-scrollbar-thumb:active { background-color: var(--accent); }
+.prefs-pane::-webkit-scrollbar, .notes::-webkit-scrollbar, #sheetBody::-webkit-scrollbar { width: 10px; }
+.prefs-pane::-webkit-scrollbar-thumb, .notes::-webkit-scrollbar-thumb, #sheetBody::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, .35); border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
+
+/* Action feedback */
+.btn.done { color: var(--ok) !important; border-color: rgba(38, 161, 72, .4); opacity: 1 !important; }
+.size.flash { animation: flash 1.2s ease-out; border-radius: 4px; }
+@keyframes flash { 0% { background: var(--accent-soft); color: var(--accent); } 100% { background: transparent; } }
+
+/* ⌘Q hint */
+.quit-hint { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 60; background: rgba(28, 28, 30, .92); color: #fff; padding: 14px 22px; border-radius: 14px; font-size: 15px; font-weight: 600; box-shadow: 0 16px 50px rgba(0, 0, 0, .35); animation: pop .15s ease-out; pointer-events: none; transition: opacity .2s; }
+.quit-hint.out { opacity: 0; }
+.quit-hint kbd { font: 600 14px var(--mono); background: rgba(255, 255, 255, .16); padding: 2px 7px; border-radius: 6px; margin: 0 2px; }
