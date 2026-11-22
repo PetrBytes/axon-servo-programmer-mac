@@ -36,9 +36,9 @@
 }
 
 /* ---- skins: translucent panels over a decorative backdrop */
-:root[data-skin] { --blur: blur(22px) saturate(160%); }
+:root[data-skin] { --blur: blur(16px) saturate(150%); }
 :root[data-skin="midnight"] {
-  --bg: #000; --side: rgba(10, 10, 14, 0.55); --card: rgba(18, 18, 24, 0.72);
+  --bg: #000; --side: rgba(6, 6, 9, 0.88); --card: rgba(16, 16, 21, 0.93);
   --field: rgba(255, 255, 255, 0.08); --line: rgba(255, 255, 255, 0.08); --edge: rgba(255, 255, 255, 0.06);
 }
 :root[data-skin="aurora"] {
@@ -52,14 +52,14 @@
 :root[data-skin="glass"] {
   --bg: transparent;
   --side: rgba(255, 255, 255, calc(0.12 + var(--glass, 0.6) * 0.3));
-  --card: rgba(255, 255, 255, calc(0.9 - var(--glass, 0.6) * 0.5));
+  --card: rgba(255, 255, 255, calc(0.94 - var(--glass, 0.6) * 0.42));
   --field: rgba(255, 255, 255, 0.55); --edge: rgba(255, 255, 255, 0.75);
-  --blur: blur(calc(8px + var(--glass, 0.6) * 26px)) saturate(180%);
+  --blur: blur(18px) saturate(170%);
   --shadow: 0 1px 1px rgba(0, 0, 0, 0.04), 0 8px 30px rgba(0, 0, 0, 0.08);
 }
 :root[data-skin="glass"][data-theme="dark"] {
   --side: rgba(30, 30, 34, calc(0.12 + var(--glass, 0.6) * 0.3));
-  --card: rgba(40, 40, 46, calc(0.9 - var(--glass, 0.6) * 0.5));
+  --card: rgba(40, 40, 46, calc(0.94 - var(--glass, 0.6) * 0.42));
   --field: rgba(255, 255, 255, 0.1); --edge: rgba(255, 255, 255, 0.14);
 }
 
@@ -81,37 +81,42 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round
 svg.fill { fill: currentColor; stroke: none; }
 svg .fillish { fill: currentColor; stroke: none; opacity: .5; }
 
-/* ================================================================ backdrop */
-.backdrop { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; display: none; }
+/* ================================================================ backdrop
+ * PERFORMANCE: everything here is static. No animations and no blur filters:
+ * soft "blobs" are plain radial gradients and stars are drawn once on a canvas,
+ * so the GPU paints the background a single time instead of every frame. */
+.backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; display: none; }
 :root[data-skin] .backdrop { display: block; }
-.stars, .blob { position: absolute; display: none; }
-:root[data-skin="midnight"] .stars { display: block; }
-.stars { top: 0; left: 0; width: 1px; height: 1px; border-radius: 50%; background: transparent; }
-.stars.s2 { animation: twinkle 4s ease-in-out infinite; }
-.stars.s3 { animation: twinkle 6s ease-in-out infinite reverse; }
-@keyframes twinkle { 50% { opacity: .35; } }
-:root[data-skin="aurora"] .blob, :root[data-skin="sunset"] .blob, :root[data-skin="glass"] .blob { display: block; }
-.blob { width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(80px); opacity: .55; animation: drift 26s ease-in-out infinite alternate; }
-.b1 { left: -15vmax; top: -20vmax; }
-.b2 { right: -20vmax; top: 10vmax; animation-duration: 32s; }
-.b3 { left: 20vmax; bottom: -30vmax; animation-duration: 38s; }
-@keyframes drift { to { transform: translate(6vmax, 4vmax) scale(1.08); } }
-:root[data-skin="aurora"] .b1 { background: #13d6a2; }
-:root[data-skin="aurora"] .b2 { background: #6f3cff; }
-:root[data-skin="aurora"] .b3 { background: #0e7cff; }
-:root[data-skin="sunset"] .backdrop { background: linear-gradient(160deg, #2a0f3d 0%, #6d1d55 40%, #c43d3d 72%, #f08a3c 100%); }
-:root[data-skin="sunset"] .b1 { background: #ff9a3c; opacity: .35; }
-:root[data-skin="sunset"] .b2 { background: #ff3d7f; opacity: .3; }
-:root[data-skin="sunset"] .b3 { background: #ffd36e; opacity: .25; }
-:root[data-skin="glass"] .blob { opacity: .22; filter: blur(110px); }
-:root[data-skin="glass"] .b1 { background: #ff8a3d; }
-:root[data-skin="glass"] .b2 { background: #4aa3ff; }
-:root[data-skin="glass"] .b3 { background: #b06bff; }
-@media (prefers-reduced-motion: reduce) { .blob, .stars { animation: none !important; } }
+#starCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+:root[data-skin="midnight"] #starCanvas { display: block; }
+:root[data-skin="midnight"] .backdrop { background: #000; }
+:root[data-skin="aurora"] .backdrop {
+  background:
+    radial-gradient(60vmax 60vmax at 5% 0%, rgba(19, 214, 162, .45), transparent 60%),
+    radial-gradient(55vmax 55vmax at 100% 35%, rgba(111, 60, 255, .45), transparent 60%),
+    radial-gradient(60vmax 60vmax at 40% 110%, rgba(14, 124, 255, .40), transparent 60%),
+    #070b18;
+}
+:root[data-skin="sunset"] .backdrop {
+  background:
+    radial-gradient(50vmax 50vmax at 10% 0%, rgba(255, 154, 60, .25), transparent 60%),
+    radial-gradient(50vmax 50vmax at 100% 40%, rgba(255, 61, 127, .22), transparent 60%),
+    linear-gradient(160deg, #2a0f3d 0%, #6d1d55 40%, #c43d3d 72%, #f08a3c 100%);
+}
+:root[data-skin="glass"] .backdrop {
+  background:
+    radial-gradient(55vmax 55vmax at 0% 0%, rgba(255, 138, 61, .20), transparent 60%),
+    radial-gradient(55vmax 55vmax at 100% 30%, rgba(74, 163, 255, .20), transparent 60%),
+    radial-gradient(60vmax 60vmax at 45% 110%, rgba(176, 107, 255, .18), transparent 60%);
+}
 
-.glassy, .card-ish, .card, .toast { -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+/* Panels: translucent colour only. (Live backdrop-filter blur on every card made the
+ * GPU re-blur the window whenever anything moved.) Liquid Glass gets its blur for free
+ * from native macOS vibrancy behind the window. Only short-lived sheets keep a blur. */
+.glassy { -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
 :root[data-skin] .card, :root[data-skin] .card-ish, :root[data-skin] .glassy { box-shadow: var(--shadow), inset 0 0 0 1px var(--edge); }
 :root[data-skin="glass"] .card, :root[data-skin="glass"] .card-ish { box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.6), inset 0 0 0 1px var(--edge); }
+.sidebar.glassy { -webkit-backdrop-filter: none; backdrop-filter: none; }
 
 /* ================================================================ layout */
 .app { position: relative; z-index: 1; display: grid; grid-template-columns: 272px 1fr; height: 100vh; }
@@ -161,7 +166,7 @@ svg .fillish { fill: currentColor; stroke: none; opacity: .5; }
 .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: rgba(255, 255, 255, .28); font-size: 11px; font-weight: 700; display: inline-grid; place-items: center; font-variant-numeric: tabular-nums; }
 
 .tools { display: flex; flex-direction: column; gap: 1px; padding-top: 6px; border-top: 1px solid var(--line); }
-.tool { display: flex; align-items: center; gap: 9px; width: 100%; border: 0; background: transparent; border-radius: 7px; padding: 6px 8px; text-align: left; font-weight: 500; transition: background .12s, transform .06s; }
+.tool { display: flex; align-items: center; gap: 9px; width: 100%; border: 0; background: transparent; border-radius: 7px; padding: 6px 8px; text-align: left; font-weight: 500; transition: background .08s, transform .05s; }
 .tool svg { width: 17px; height: 17px; color: var(--accent); flex: none; }
 .tool span { flex: 1; }
 .tool kbd { font: 11px var(--mono); color: var(--muted); opacity: 0; transition: opacity .12s; }
@@ -173,7 +178,7 @@ svg .fillish { fill: currentColor; stroke: none; opacity: .5; }
 .tool.settings { margin-top: 2px; }
 .tool.settings svg { color: var(--muted); }
 
-.activity { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: hidden; }
+.activity { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: hidden; contain: strict; }
 .activity.collapsed { flex: none; }
 .activity.hidden-pref { display: none; }
 .activity-head { display: flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 8px 10px; font-weight: 600; font-size: 12px; text-align: left; transition: background .12s; }
@@ -200,7 +205,7 @@ svg .fillish { fill: currentColor; stroke: none; opacity: .5; }
 .log-hint { color: var(--muted); font-size: 10.5px; padding: 6px 0 2px; text-align: center; opacity: .8; }
 
 /* ================================================================ buttons */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); font-weight: 560; box-shadow: var(--shadow); transition: transform .06s, background .12s, filter .12s, opacity .15s, box-shadow .15s; }
+.btn { white-space: nowrap; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); font-weight: 560; box-shadow: var(--shadow); transition: transform .05s, background .08s, filter .08s, opacity .1s; }
 .btn svg { width: 16px; height: 16px; flex: none; }
 .btn:hover:not(:disabled) { filter: brightness(0.97); }
 :root[data-theme="dark"] .btn:hover:not(:disabled) { filter: brightness(1.15); }
@@ -236,11 +241,11 @@ svg .fillish { fill: currentColor; stroke: none; opacity: .5; }
 .pill { border: 0; background: var(--accent-soft); color: var(--accent); padding: 4px 11px; border-radius: 99px; font-weight: 600; font-size: 12px; white-space: nowrap; transition: filter .12s, transform .06s; }
 .pill:hover { filter: brightness(0.95); }
 .pill:active { transform: scale(0.97); }
-.banner { display: flex; align-items: center; gap: 9px; background: rgba(212, 136, 6, 0.14); color: var(--warn); border-radius: 10px; padding: 9px 12px; margin-bottom: 14px; font-weight: 550; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+.banner { display: flex; align-items: center; gap: 9px; background: rgba(212, 136, 6, 0.14); color: var(--warn); border-radius: 10px; padding: 9px 12px; margin-bottom: 14px; font-weight: 550; }
 .banner svg { width: 18px; height: 18px; flex: none; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; align-items: start; }
-.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px 6px; }
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px 6px; contain: layout paint; }
 .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin: 0 0 4px; font-weight: 650; }
 .card.wide { grid-column: 1 / -1; }
 

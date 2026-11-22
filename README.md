@@ -73,6 +73,9 @@ By using it you accept that **you do so at your own risk**. The author and contr
 
 If something doesn't work, please [open an issue](../../issues) rather than assuming it will be fixed.
 
+## Releasing
+Bump `version` in `package.json` (and add `release-notes/vX.Y.Z.md`), then push to `main`. GitHub Actions builds and signs the app on a Mac runner and publishes a pre-release with the DMG attached. The in-app updater picks it up from there.
+
 ## Build from source
 ```bash
 npm install
@@ -109,6 +112,8 @@ The byte layout of the parameter block is documented in [`src/protocol.js`](src/
 - `scripts/mkudzo.py` – builds a compressed `.dmg` on Linux (`zlib` or `bzip2`)
 
 ## Changelog
+**1.3.0** – Big CPU/GPU/memory reduction (static theme backgrounds, no live blur, Chromium features trimmed), background polling backoff, snappier UI, button wrapping fix, releases now built and published automatically by GitHub Actions.
+
 **1.2.0** – Update checker and installer, new themes (Midnight, Aurora, Sunset, Liquid Glass), one-screen first-launch setup, extra write safety checks, log opens on a new session with history above and retention options, cache size in Settings, demo button toggle, exit to start screen, confirmations for Discard and quitting with unsaved changes, ⌘W no longer closes the app, Write button shows a change count.
 
 **1.1.0** – Windows setting names, Sensitivity labels, servo plug/unplug detection with auto-read, Narrow Band/SSR range rescaling, sidebar activity log that persists, Settings window (⌘,), new icon, button hover/press states, smaller DMG.

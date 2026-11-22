@@ -13,6 +13,14 @@ const isAxon = (d) => d && d.vendorId === VENDOR_ID && d.productId === PRODUCT_I
 
 let win;
 
+/* PERFORMANCE: switch off Chromium features this app never uses.
+ * - SpareRendererForSitePerProcess keeps an extra idle renderer process alive
+ * - media/translate/WebRTC services are irrelevant for a USB tool */
+app.commandLine.appendSwitch('disable-features', [
+  'SpareRendererForSitePerProcess', 'MediaRouter', 'HardwareMediaKeyHandling', 'GlobalMediaControls',
+  'Translate', 'WebRtcHideLocalIpsWithMdns', 'AutofillServerCommunication', 'OptimizationHints',
+].join(','));
+
 /* ------------------------------------------------------------ storage */
 const dataPath = (...p) => path.join(app.getPath('userData'), ...p);
 const backupsDir = () => dataPath('backups');
@@ -102,6 +110,10 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      spellcheck: false, // the dictionary service costs memory and isn't needed
+      enableWebSQL: false,
+      v8CacheOptions: 'bypassHeatCheck', // cache compiled JS on first run -> faster launches
+      backgroundThrottling: true,
     },
   });
 

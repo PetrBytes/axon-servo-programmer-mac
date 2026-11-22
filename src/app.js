@@ -49,6 +49,8 @@
   const $ = (id) => document.getElementById(id);
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const POLL_MS = 400; // Windows polls every 300 ms
+  const POLL_BG_MS = 2000; // window in the background
+  const pollDelay = () => (document.hidden ? 4000 : document.hasFocus() ? POLL_MS : POLL_BG_MS);
 
   /* --------------------------------------------------------------- state */
   const st = {
@@ -82,19 +84,36 @@
     if (['midnight', 'aurora', 'sunset', 'glass'].includes(t)) root.dataset.skin = t; else delete root.dataset.skin;
     root.style.setProperty('--glass', String((st.settings.glass ?? 60) / 100));
     $('glassGroup').hidden = t !== 'glass';
+    drawStars();
   }
   mq.addEventListener('change', applyTheme);
 
-  function makeStars() {
-    const W = 2600, Hh = 1700;
-    [[260, 1, 'rgba(255,255,255,.9)'], [140, 1.4, 'rgba(255,255,255,.95)'], [60, 2, 'rgba(255,240,220,1)']].forEach(([n, size, col], i) => {
-      const shadows = [];
-      for (let k = 0; k < n; k++) shadows.push(`${Math.round(Math.random() * W)}px ${Math.round(Math.random() * Hh)}px 0 ${size > 1.5 ? 0.6 : 0}px ${col}`);
-      const elx = document.querySelector(`.stars.s${i + 1}`);
-      elx.style.width = elx.style.height = `${size}px`;
-      elx.style.boxShadow = shadows.join(',');
-    });
+  /* Stars are painted once onto a canvas (no animation), and only for Midnight. */
+  let starsDrawnFor = '';
+  function drawStars() {
+    const c = $('starCanvas');
+    if (st.settings.theme !== 'midnight') { if (starsDrawnFor) { c.width = c.height = 0; starsDrawnFor = ''; } return; }
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth, h = window.innerHeight;
+    const key = `${w}x${h}@${dpr}`;
+    if (starsDrawnFor === key) return;
+    starsDrawnFor = key;
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    const g = c.getContext('2d', { alpha: false });
+    g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
+    let seed = 1337; // deterministic so resizing doesn't reshuffle the sky
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const count = Math.round((w * h) / 2600);
+    for (let i = 0; i < count; i++) {
+      const r = rnd() < 0.08 ? 1.3 + rnd() * 0.9 : 0.4 + rnd() * 0.7;
+      g.globalAlpha = 0.35 + rnd() * 0.65;
+      g.fillStyle = rnd() < 0.15 ? '#ffe9d6' : '#ffffff';
+      g.beginPath(); g.arc(rnd() * c.width, rnd() * c.height, r * dpr, 0, Math.PI * 2); g.fill();
+    }
+    g.globalAlpha = 1;
   }
+  let resizeTimer = null;
+  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawStars, 250); });
 
   function renderThemePicker(container, compact) {
     container.innerHTML = '';
@@ -175,11 +194,14 @@
     return line;
   }
   let sessionBox = null;
+  const LOG_DOM_HISTORY = 300; // older lines rendered on screen (the rest stay in the log file)
+  const LOG_DOM_SESSION = 800; // lines kept on screen for the current session
   function log(msg, kind = 'info') {
     const raw = `${stamp()}|${kind}|${msg}`;
     const b = $('logBody');
     const stick = b.scrollHeight - b.scrollTop - b.clientHeight < 30;
     sessionBox.appendChild(renderLogLine(raw));
+    while (sessionBox.childElementCount > LOG_DOM_SESSION) sessionBox.children[1].remove();
     if (stick) b.scrollTop = b.scrollHeight;
     st.logCount++;
     $('logCount').textContent = st.logCount;
@@ -192,8 +214,9 @@
     b.innerHTML = '';
     const frag = document.createDocumentFragment();
     if (lines.length) {
-      frag.appendChild(el('div', 'log-hint', '↑ older sessions'));
-      lines.forEach((l) => frag.appendChild(renderLogLine(l, true)));
+      const shown = lines.slice(-LOG_DOM_HISTORY);
+      frag.appendChild(el('div', 'log-hint', lines.length > shown.length ? `↑ showing the last ${shown.length} of ${lines.length} older entries` : '↑ older sessions'));
+      shown.forEach((l) => frag.appendChild(renderLogLine(l, true)));
     }
     sessionBox = el('div', 'log-session');
     const sep = el('div', 'log-sep');
@@ -382,11 +405,12 @@
       else sec.rows.forEach((r) => card.appendChild(buildRow(r)));
       form.appendChild(card);
     }
+    rowCache = Array.from(form.querySelectorAll('.row'));
   }
 
   function refresh() {
     if (!st.form) return;
-    document.querySelectorAll('#form .row').forEach((row) => {
+    rowCache.forEach((row) => {
       if (row._set) row._set(st.form);
       const def = row._def;
       if (def && def.type !== 'switch' && def.disabledWhen) row.classList.toggle('disabled', !!def.disabledWhen(st.form));
@@ -394,10 +418,11 @@
     markChanged();
   }
 
+  let rowCache = [];
   function markChanged() {
     const changes = diff(st.base, st.form);
     const keys = new Set(changes.map((c) => (c.key.startsWith('ol') ? 'olLevels' : c.key)));
-    document.querySelectorAll('#form .row').forEach((row) => row.classList.toggle('changed', keys.has(row.dataset.key)));
+    rowCache.forEach((row) => row.classList.toggle('changed', keys.has(row.dataset.key)));
     const n = changes.length;
     $('writeBadge').hidden = n === 0;
     $('writeBadge').textContent = n;
@@ -423,8 +448,9 @@
     $('unplugBanner').hidden = !(st.servo && !st.present && connected);
     $('servoChip').textContent = st.present ? 'Connected' : 'Unplugged';
     $('servoChip').classList.toggle('off', !st.present);
-    native.setState({ busy: st.busy, dirty: d });
+    if (lastState.busy !== st.busy || lastState.dirty !== d) { lastState = { busy: st.busy, dirty: d }; native.setState(lastState); }
   }
+  let lastState = {};
 
   function showServo(s) {
     st.servo = s;
@@ -496,13 +522,24 @@
 
   /* ---------------------------------------------------- servo polling */
   let polling = false;
+  // One self-scheduling timer (not setInterval), so slow replies never pile up and
+  // there is never more than one pending poll.
+  function schedulePoll(ms) { clearTimeout(st.pollTimer); st.pollTimer = setTimeout(pollTick, ms); }
+  async function pollTick() {
+    if (!st.polling) return;
+    await pollOnce();
+    if (st.polling) schedulePoll(pollDelay());
+  }
   function startPolling() {
     stopPolling();
     st.present = false; st.misses = 0;
-    st.pollTimer = setInterval(pollOnce, POLL_MS);
-    pollOnce();
+    st.polling = true;
+    pollTick();
   }
-  function stopPolling() { if (st.pollTimer) clearInterval(st.pollTimer); st.pollTimer = null; }
+  function stopPolling() { st.polling = false; clearTimeout(st.pollTimer); st.pollTimer = null; }
+  const pollSoon = () => { if (st.polling) schedulePoll(50); };
+  window.addEventListener('focus', pollSoon);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollSoon(); });
   async function pollOnce() {
     if (!st.prog || st.busy || polling) return;
     polling = true;
@@ -944,7 +981,6 @@
   /* --------------------------------------------------------------- boot */
   (async function boot() {
     st.settings = { ...st.settings, ...(await native.getSettings().catch(() => ({}))) };
-    makeStars();
     renderThemePicker($('themeGrid'), false);
     renderThemePicker($('welcomeThemes'), true);
     applyTheme();

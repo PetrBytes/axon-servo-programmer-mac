@@ -1,0 +1,20 @@
+Axon Servo Programmer for macOS (unofficial)
+============================================
+
+You need the Axon Servo Programmer (the USB box) and an Axon servo.
+
+1. Drag "Axon Servo Programmer" onto the Applications folder.
+   (If you have an older version, replace it.)
+
+2. The app isn't notarised by Apple. The first time, open Terminal and
+   paste this one line:
+
+   xattr -cr "/Applications/Axon Servo Programmer.app" && codesign --force --deep --sign - "/Applications/Axon Servo Programmer.app"
+
+   (Or open it, then go to System Settings > Privacy & Security and
+   click "Open Anyway".)
+
+3. Open the app. Future versions update themselves from inside the app.
+
+Project page: https://github.com/PetrBytes/axon-servo-programmer-mac
+Unofficial, provided as-is. Not affiliated with Axon.

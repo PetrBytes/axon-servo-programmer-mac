@@ -1,0 +1,59 @@
+# Builds the Mac app on a real macOS runner and publishes a GitHub pre-release
+# whenever the version in package.json changes on main (or when run manually).
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-14   # Apple Silicon
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+      - name: Read version
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VER" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release v$VER already exists, nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build app and DMG
+        if: steps.v.outputs.exists == 'false'
+        run: bash scripts/build-mac.sh "${{ steps.v.outputs.version }}"
+
+      - name: Publish pre-release
+        if: steps.v.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ steps.v.outputs.version }}"
+          NOTES="release-notes/v$VER.md"
+          [ -f "$NOTES" ] || printf 'Axon Servo Programmer %s\n' "$VER" > "$NOTES"
+          gh release create "v$VER" "release/Axon-Servo-Programmer-$VER-arm64.dmg" \
+            --title "$VER" --notes-file "$NOTES" --prerelease --target "$GITHUB_SHA"
