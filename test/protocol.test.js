@@ -142,3 +142,15 @@ test('restore raw backup', async () => {
   await p.writeServo(null, { rawBlock: backup });
   assert.deepEqual(Array.from(m.P), Array.from(backup));
 });
+
+test('probe follows the Windows timer rules', async () => {
+  const [m, p] = mk();
+  assert.equal(await p.probe(), 'AAS');
+  m.present = false;
+  assert.equal(await p.probe(), null);
+  m.present = true;
+  const [, pu] = mk({ family: 'UPL' });
+  assert.equal(await pu.probe(), 'UPL');
+  const [, pa] = mk({ family: 'ANS' });
+  assert.equal(await pa.probe(), null);
+});

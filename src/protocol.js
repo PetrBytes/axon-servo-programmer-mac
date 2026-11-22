@@ -289,6 +289,24 @@
       });
     }
 
+    /**
+     * Presence check, exactly like the Windows tool's 300 ms timer:
+     * one identify packet; a servo is present only if the reply is
+     * status 1 / error 0 and the type is AAS (3) or UPL (4) with byte 2 == 1.
+     * Never throws for a missing servo; resolves null instead.
+     */
+    probe() {
+      return this._lock(async () => {
+        const r = await this._packet(CMD.IDENTIFY, 0, 4);
+        if (r[1] !== 1 || r[2] !== 0) return null;
+        const d = r.subarray(5, 9);
+        if (d[2] !== 1) return null;
+        if (d[0] === 3) return FAMILY.AAS;
+        if (d[0] === 4) return FAMILY.UPL;
+        return null;
+      });
+    }
+
     /** Identify the servo and read its parameter block. */
     readServo() {
       return this._lock(async () => {
@@ -343,7 +361,7 @@
   class MockServo {
     constructor({ family = FAMILY.AAS, moduleState = 1 } = {}) {
       this.module = moduleState;
-      this.type = family === FAMILY.UPL ? [4, 0x01, 0x02, 0x03] : family === FAMILY.ANS ? [2, 0x01, 0x01, 0x00] : [3, 0x02, 0x01, 0x05];
+      this.type = family === FAMILY.UPL ? [4, 0x01, 0x01, 0x03] : family === FAMILY.ANS ? [2, 0x01, 0x01, 0x00] : [3, 0x02, 0x01, 0x05];
       const P = new Uint8Array(PARAM_LEN);
       put16(P, 0, 0x3bd0); put16(P, 2, 0x0bf6);
       P[4] = P[5] = 255; P[6] = 128; P[0x0c] = 0x10;
@@ -357,6 +375,7 @@
       this.P = P;
       this.factory = Uint8Array.from(P);
       this.status = new Uint8Array(0x20);
+      this.present = true;
       this.packets = [];
     }
     async exchange(out) {
@@ -365,6 +384,7 @@
       r[0] = REPORT_ID; r[1] = 1; r[2] = 0;
       const cmd = out[1], addr = (out[2] << 8) | out[3], n = out[4];
       if (out[0] !== REPORT_ID || n > CHUNK) { r[1] = 0; return r; }
+      if (!this.present && cmd !== CMD.MODULE_STATUS && cmd !== CMD.MODULE_INIT) { r[1] = 0; return r; }
       const src = {
         [CMD.MODULE_STATUS]: () => { const s = new Uint8Array(0x20); s[0] = this.module; return s; },
         [CMD.IDENTIFY]: () => Uint8Array.from(this.type),

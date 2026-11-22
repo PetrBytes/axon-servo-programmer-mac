@@ -5,17 +5,34 @@ An unofficial Mac app for programming **Axon servos** with the Axon USB programm
 > Not affiliated with or endorsed by Axon. Written from scratch by studying how the official Windows tool (v1.0.5) talks to the programmer.
 
 ## Features
-- Read and write every setting from the Windows tool: Range, Neutral, Sensitivity, Inversion, Max Power, Damping, Soft Start, PPM Range, Narrow Band / Sanwa SSR, Lost-PPM behaviour, Overload Protection levels
+- Every setting from the Windows tool, using the same names (see table below)
+- Detects the programmer and servo being plugged in or out, and reads the servo automatically, like the Windows tool
 - Shows exactly what will change before writing, then reads the servo back to verify
 - Automatic backup every time a servo is read, with one-click restore
 - Save and load profiles to set up a whole robot the same way
+- Activity log in the sidebar, kept until you clear it (⌘L to show/hide)
+- Settings (⌘,): theme, log, cache and backup management
 - Demo mode to try it without hardware
-- Light and dark mode
+
+## Setting names (Windows → Mac)
+| Windows | Mac app | Notes |
+|---|---|---|
+| Range / Servo Angle | Range | 1–255 |
+| Middle Position / Servo Neutral | Middle Position | −127…127 |
+| Sensitivity (Deadband) | Sensitivity | Ultra High / High / Medium / Low |
+| Max Power / PWM Power % | Max Power | 100–255, shown as % |
+| Damping Factor | Damping Factor | 50–600 |
+| PPM Range | PPM Range | 500~2500 / 900~2100 / 1100~1900 µs |
+| Lose PPM Protection | Lose PPM Protection | Release / Keep Position / Go Neutral Position |
+| Narrow Band, SANWA SSR | Narrow Band, SANWA SSR | Rescale Range when toggled, like Windows |
+| Inversion, Soft Start | Inversion, Soft Start | |
+| Over Load Protection, Level 1–3 | Over Load Protection | PWM % and time per level |
+| Default | Default (Factory) | |
 
 Firmware updating is intentionally **not** included.
 
 ## Install
-1. Download the `.dmg` from [Releases](../../releases).
+1. Download the `.dmg` from [Releases](../../releases) (Apple Silicon).
 2. Drag the app into **Applications**.
 3. The app isn't notarised by Apple, so the first time run this in Terminal:
    ```
@@ -55,4 +72,9 @@ The byte layout of the parameter block is documented in [`src/protocol.js`](src/
 - `src/app.js`, `src/index.html`, `src/styles.css` – interface
 - `main.js`, `preload.js` – Electron main process
 - `test/` – `node --test` suite
-- `scripts/mkudzo.py` – builds a compressed `.dmg` on Linux
+- `scripts/mkudzo.py` – builds a compressed `.dmg` on Linux (`zlib` or `bzip2`)
+
+## Changelog
+**1.1.0** – Windows setting names, Sensitivity labels, servo plug/unplug detection with auto-read, Narrow Band/SSR range rescaling, sidebar activity log that persists, Settings window (⌘,), new icon, button hover/press states, smaller DMG.
+
+**1.0.0** – First version.

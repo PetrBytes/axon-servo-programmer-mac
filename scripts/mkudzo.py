@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Wrap a raw filesystem image (e.g. ISO9660) in a zlib-compressed UDIF (UDZO) .dmg."""
+"""Wrap a raw filesystem image (e.g. ISO9660) in a compressed UDIF .dmg (zlib = UDZO, bzip2 = UDBZ)."""
 import base64
+import bz2
 import plistlib
 import struct
 import sys
@@ -9,7 +10,7 @@ import zlib
 
 SECTOR = 512
 CHUNK_SECTORS = 2048  # 1 MiB chunks, same as hdiutil
-ZLIB, ZERO, END = 0x80000005, 0x00000000, 0xFFFFFFFF
+ZLIB, BZIP2, ZERO, END = 0x80000005, 0x80000006, 0x00000000, 0xFFFFFFFF
 
 
 def crc32_field(value):
@@ -17,7 +18,7 @@ def crc32_field(value):
     return struct.pack('>II', 2, 32) + struct.pack('>I', value) + b'\0' * 124
 
 
-def main(src, dst):
+def main(src, dst, method='zlib'):
     raw = open(src, 'rb').read()
     if len(raw) % SECTOR:
         raw += b'\0' * (SECTOR - len(raw) % SECTOR)
@@ -31,8 +32,11 @@ def main(src, dst):
         if piece.count(0) == len(piece):
             chunks.append((ZERO, first, n, len(out), 0))
             continue
-        comp = zlib.compress(piece, 9)
-        chunks.append((ZLIB, first, n, len(out), len(comp)))
+        if method == 'bzip2':
+            comp, typ = bz2.compress(piece, 9), BZIP2
+        else:
+            comp, typ = zlib.compress(piece, 9), ZLIB
+        chunks.append((typ, first, n, len(out), len(comp)))
         out += comp
     data_len = len(out)
     data_crc = zlib.crc32(out) & 0xffffffff
@@ -84,4 +88,4 @@ def main(src, dst):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else 'zlib')
