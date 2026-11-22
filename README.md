@@ -2,7 +2,11 @@
 
 An unofficial Mac app for programming **Axon servos** with the Axon USB programmer.
 
-> Not affiliated with or endorsed by Axon. Written from scratch by studying how the official Windows tool (v1.0.5) talks to the programmer.
+> **Pre-release.** This is early software that has been tested against a simulated servo but only lightly on real hardware. Please read the [disclaimer](#disclaimer) before using it.
+
+Axon servos are popular in FIRST Tech Challenge (FTC) because they are strong, programmable and report their position through a fourth feedback wire. The catch is that Axon's programming software only runs on Windows, so teams working on MacBooks end up borrowing a school laptop or a teammate's PC just to change a range or flip a servo's direction before a match. This app lets FTC teams (and anyone else using Axon servos) do all of that on a Mac: plug in the programmer, adjust settings like Range, Sensitivity and Inversion, and write them in seconds. The setting names match the Windows software, so existing team guides and tutorials still make sense.
+
+> Not affiliated with or endorsed by Axon or *FIRST*. Written from scratch by studying how the official Windows tool (v1.0.5) talks to the programmer.
 
 ## Features
 - Every setting from the Windows tool, using the same names (see table below)
@@ -38,6 +42,17 @@ Firmware updating is intentionally **not** included.
    ```
    xattr -cr "/Applications/Axon Servo Programmer.app" && codesign --force --deep --sign - "/Applications/Axon Servo Programmer.app"
    ```
+
+## Disclaimer
+This software is provided **"as is", without warranty of any kind**. It is an independent, unofficial project and is not made, supported or endorsed by Axon. It was built by reverse engineering the official Windows tool and may contain mistakes, may not support every servo or programmer version, and may stop working if Axon changes their hardware or firmware.
+
+By using it you accept that **you do so at your own risk**. The author and contributors are not responsible for any damage to servos, programmers, robots or other equipment, for lost settings, or for any other loss, including problems at competitions. Before relying on it:
+
+- Check the values after every write (the app reads them back for you, but look before you compete).
+- Keep the official Windows software available as a backup.
+- Use **Restore Backup** or **Default (Factory)** if a servo behaves strangely.
+
+If something doesn't work, please [open an issue](../../issues) rather than assuming it will be fixed.
 
 ## Build from source
 ```bash
