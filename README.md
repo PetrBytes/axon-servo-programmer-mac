@@ -8,6 +8,23 @@ Axon servos are popular in FIRST Tech Challenge (FTC) because they are strong, p
 
 > Not affiliated with or endorsed by Axon or *FIRST*. Written from scratch by studying how the official Windows tool (v1.0.5) talks to the programmer.
 
+## What you need
+- **An Axon Servo Programmer** (the USB box the servo plugs into). This app talks to the programmer, not directly to the servo, so it does nothing without one.
+- A **data** USB cable. A USB-A → USB-C adapter or hub is fine; the Mac sees the programmer the same way.
+- A Mac with **Apple Silicon** (M1 or newer) running macOS 11 or later.
+
+## Compatibility
+- Works with the original Axon Servo Programmer (USB ID `0471:13AA`), the one used with Axon's Windows software v1.0.5, and the servos that software can program (it detects them as **AAS** or **UPL** types).
+- **Axon MK2** (the newer MK2 programmer and MINI/MAX MK2 servos) uses Axon's separate "Software MK2". It hasn't been tested with this app. If an MK2 programmer has a different USB ID, the app simply won't see it and won't touch it.
+- Switching a servo between standard and continuous-rotation mode needs a **firmware flash**, which this app deliberately does not do. Use Axon's Windows software for that.
+
+## Safety
+The app is built so it can't brick a servo:
+- Firmware commands are blocked at the lowest level; only read, write-settings, identify and factory-default commands can ever be sent.
+- A write only changes the same bytes the Windows software changes. Calibration and identity bytes are always copied back unchanged.
+- Writes are refused if a different servo was plugged in since it was read, or if the servo's data looks blank or corrupted.
+- Every write is read back and verified, and a backup is saved every time a servo is read.
+
 ## Features
 - Every setting from the Windows tool, using the same names (see table below)
 - Detects the programmer and servo being plugged in or out, and reads the servo automatically, like the Windows tool
@@ -15,7 +32,9 @@ Axon servos are popular in FIRST Tech Challenge (FTC) because they are strong, p
 - Automatic backup every time a servo is read, with one-click restore
 - Save and load profiles to set up a whole robot the same way
 - Activity log in the sidebar, kept until you clear it (⌘L to show/hide)
-- Settings (⌘,): theme, log, cache and backup management
+- Settings (⌘,): themes (System, Light, Dark, Midnight, Aurora, Sunset, Liquid Glass), log history options, cache and backup management
+- Built-in updates from GitHub Releases (automatic check, download and install)
+- Confirmations for anything that discards or overwrites
 - Demo mode to try it without hardware
 
 ## Setting names (Windows → Mac)
@@ -90,6 +109,8 @@ The byte layout of the parameter block is documented in [`src/protocol.js`](src/
 - `scripts/mkudzo.py` – builds a compressed `.dmg` on Linux (`zlib` or `bzip2`)
 
 ## Changelog
+**1.2.0** – Update checker and installer, new themes (Midnight, Aurora, Sunset, Liquid Glass), one-screen first-launch setup, extra write safety checks, log opens on a new session with history above and retention options, cache size in Settings, demo button toggle, exit to start screen, confirmations for Discard and quitting with unsaved changes, ⌘W no longer closes the app, Write button shows a change count.
+
 **1.1.0** – Windows setting names, Sensitivity labels, servo plug/unplug detection with auto-read, Narrow Band/SSR range rescaling, sidebar activity log that persists, Settings window (⌘,), new icon, button hover/press states, smaller DMG.
 
 **1.0.0** – First version.

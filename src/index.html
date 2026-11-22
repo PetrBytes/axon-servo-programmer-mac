@@ -7,8 +7,9 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="backdrop" aria-hidden="true"><div class="stars s1"></div><div class="stars s2"></div><div class="stars s3"></div><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
   <div class="app">
-    <aside class="sidebar">
+    <aside class="sidebar glassy">
       <div class="drag"></div>
       <div class="brand">
         <img class="logo" src="icon.svg" alt="">
@@ -18,15 +19,23 @@
         </div>
       </div>
 
-      <div class="status" id="status">
+      <button class="update-banner" id="updateBanner" hidden>
+        <svg viewBox="0 0 20 20"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12"/></svg>
+        <span><b>Update available</b><small id="updateBannerVer"></small></span>
+      </button>
+
+      <div class="status card-ish" id="status">
         <span class="dot"></span>
         <div class="status-text">
           <div class="status-title" id="statusTitle">Looking for programmer…</div>
-          <div class="status-sub" id="statusSub">Plug in the Axon USB programmer</div>
+          <div class="status-sub" id="statusSub">Plug in the Axon Servo Programmer</div>
         </div>
+        <button class="icon-btn" id="btnHome" title="Back to start screen" hidden>
+          <svg viewBox="0 0 20 20"><path d="M6 6l8 8M14 6l-8 8"/></svg>
+        </button>
       </div>
 
-      <section class="servo-card" id="servoCard" hidden>
+      <section class="servo-card card-ish" id="servoCard" hidden>
         <div class="servo-top">
           <div class="servo-name" id="servoName">—</div>
           <span class="chip" id="servoChip">Connected</span>
@@ -41,11 +50,11 @@
       <div class="side-actions">
         <button class="btn" id="btnRead" disabled title="Read (⌘R)">
           <svg viewBox="0 0 20 20"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12"/></svg>
-          Read
+          <span>Read</span>
         </button>
         <button class="btn primary" id="btnWrite" disabled title="Write (⌘↩)">
           <svg viewBox="0 0 20 20"><path d="M10 15V5m0 0-4 4m4-4 4 4M4 16h12"/></svg>
-          <span id="btnWriteLabel">Write</span>
+          <span>Write</span><span class="badge" id="writeBadge" hidden>0</span>
         </button>
       </div>
       <button class="btn subtle full" id="btnRevert" disabled>Discard Changes</button>
@@ -69,7 +78,7 @@
         </button>
       </nav>
 
-      <section class="activity" id="activity">
+      <section class="activity card-ish" id="activity">
         <button class="activity-head" id="activityHead" aria-expanded="true">
           <svg class="chev" viewBox="0 0 20 20"><path d="m7 5 5 5-5 5"/></svg>
           <span>Activity</span>
@@ -79,8 +88,8 @@
       </section>
 
       <button class="tool settings" id="btnSettings">
-        <svg viewBox="0 0 20 20"><path d="M10 12.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z"/><path d="M16.2 11.9a1.3 1.3 0 0 0 .3 1.4l.1.1a1.6 1.6 0 1 1-2.2 2.2l-.1-.1a1.3 1.3 0 0 0-1.4-.3 1.3 1.3 0 0 0-.8 1.2v.2a1.6 1.6 0 1 1-3.1 0v-.1a1.3 1.3 0 0 0-.9-1.2 1.3 1.3 0 0 0-1.4.3l-.1.1a1.6 1.6 0 1 1-2.2-2.2l.1-.1a1.3 1.3 0 0 0 .3-1.4 1.3 1.3 0 0 0-1.2-.8h-.2a1.6 1.6 0 1 1 0-3.1h.1a1.3 1.3 0 0 0 1.2-.9 1.3 1.3 0 0 0-.3-1.4l-.1-.1a1.6 1.6 0 1 1 2.2-2.2l.1.1a1.3 1.3 0 0 0 1.4.3h.1a1.3 1.3 0 0 0 .8-1.2v-.2a1.6 1.6 0 1 1 3.1 0v.1a1.3 1.3 0 0 0 .8 1.2 1.3 1.3 0 0 0 1.4-.3l.1-.1a1.6 1.6 0 1 1 2.2 2.2l-.1.1a1.3 1.3 0 0 0-.3 1.4v.1a1.3 1.3 0 0 0 1.2.8h.2a1.6 1.6 0 1 1 0 3.1h-.1a1.3 1.3 0 0 0-1.2.8Z"/></svg>
-          <span>Settings</span><kbd>⌘,</kbd>
+        <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.6"/><path d="M16.2 11.9a1.3 1.3 0 0 0 .3 1.4l.1.1a1.6 1.6 0 1 1-2.2 2.2l-.1-.1a1.3 1.3 0 0 0-1.4-.3 1.3 1.3 0 0 0-.8 1.2v.2a1.6 1.6 0 1 1-3.1 0v-.1a1.3 1.3 0 0 0-.9-1.2 1.3 1.3 0 0 0-1.4.3l-.1.1a1.6 1.6 0 1 1-2.2-2.2l.1-.1a1.3 1.3 0 0 0 .3-1.4 1.3 1.3 0 0 0-1.2-.8h-.2a1.6 1.6 0 1 1 0-3.1h.1a1.3 1.3 0 0 0 1.2-.9 1.3 1.3 0 0 0-.3-1.4l-.1-.1a1.6 1.6 0 1 1 2.2-2.2l.1.1a1.3 1.3 0 0 0 1.4.3h.1a1.3 1.3 0 0 0 .8-1.2v-.2a1.6 1.6 0 1 1 3.1 0v.1a1.3 1.3 0 0 0 .8 1.2 1.3 1.3 0 0 0 1.4-.3l.1-.1a1.6 1.6 0 1 1 2.2 2.2l-.1.1a1.3 1.3 0 0 0-.3 1.4v.1a1.3 1.3 0 0 0 1.2.8h.2a1.6 1.6 0 1 1 0 3.1h-.1a1.3 1.3 0 0 0-1.2.8Z"/></svg>
+        <span>Settings</span><kbd>⌘,</kbd>
       </button>
     </aside>
 
@@ -90,11 +99,12 @@
       <div class="empty" id="empty">
         <img class="empty-logo" src="icon.svg" alt="">
         <h1 id="emptyTitle">Connect your servo</h1>
-        <p id="emptyText">Plug the Axon programmer into a USB port and connect a servo to it. Its settings load automatically.</p>
+        <p id="emptyText">Plug the <b>Axon Servo Programmer</b> into your Mac (a USB-C adapter is fine) and connect a servo to it. Its settings load automatically.</p>
         <div class="empty-actions">
           <button class="btn primary" id="btnConnect">Connect Programmer</button>
           <button class="btn" id="btnDemo">Try Demo Mode</button>
         </div>
+        <p class="empty-need" id="emptyNeed">You need the Axon Servo Programmer (the USB box the servo plugs into). This app can’t talk to a servo directly.</p>
       </div>
 
       <div class="editor" id="editor" hidden>
@@ -111,6 +121,10 @@
           <svg viewBox="0 0 20 20"><path d="M10 3.5 17 16H3L10 3.5ZM10 8.5v3.5M10 14.2v.1"/></svg>
           <span>Servo unplugged. Your unsaved changes are kept. Plug it back in to write them.</span>
         </div>
+        <div class="banner" id="softBanner" hidden>
+          <svg viewBox="0 0 20 20"><path d="M10 3.5 17 16H3L10 3.5ZM10 8.5v3.5M10 14.2v.1"/></svg>
+          <span id="softText"></span>
+        </div>
         <div class="grid" id="form"></div>
       </div>
     </main>
@@ -118,49 +132,124 @@
 
   <div class="toast-wrap" id="toasts"></div>
 
+  <!-- generic sheet -->
   <div class="sheet-backdrop" id="sheet" hidden>
-    <div class="sheet" role="dialog" aria-modal="true">
+    <div class="sheet glassy" role="dialog" aria-modal="true">
       <h2 id="sheetTitle"></h2>
       <div id="sheetBody"></div>
       <div class="sheet-actions" id="sheetActions"></div>
     </div>
   </div>
 
+  <!-- first launch: one screen -->
+  <div class="sheet-backdrop" id="welcome" hidden>
+    <div class="welcome glassy" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+      <div class="welcome-head">
+        <img src="icon.svg" alt="" class="welcome-logo">
+        <div>
+          <h2 id="welcomeTitle">Welcome to Axon Programmer</h2>
+          <p class="muted">Set up in seconds. You can change any of this later in Settings (⌘,).</p>
+        </div>
+      </div>
+      <div class="need">
+        <div class="need-title">What you’ll need</div>
+        <ul>
+          <li><b>Axon Servo Programmer</b> — the USB box your servo plugs into</li>
+          <li>A data USB cable (or a USB-A → USB-C adapter)</li>
+          <li>An Axon servo, plugged into the programmer</li>
+        </ul>
+      </div>
+      <div class="welcome-label">Appearance</div>
+      <div class="theme-grid compact" id="welcomeThemes"></div>
+      <div class="prefs-group">
+        <label class="prefs-row"><div><div class="row-label">Read servos automatically when plugged in</div></div><span class="switch"><input type="checkbox" id="wAutoRead" checked><span></span></span></label>
+        <label class="prefs-row"><div><div class="row-label">Check for updates automatically</div></div><span class="switch"><input type="checkbox" id="wAutoUpdate" checked><span></span></span></label>
+        <label class="prefs-row"><div><div class="row-label">Show the “Try Demo Mode” button</div></div><span class="switch"><input type="checkbox" id="wShowDemo" checked><span></span></span></label>
+      </div>
+      <p class="fine">Unofficial software, provided as-is. Not affiliated with Axon.</p>
+      <div class="sheet-actions"><button class="btn primary big" id="welcomeGo">Get Started</button></div>
+    </div>
+  </div>
+
+  <!-- settings -->
   <div class="sheet-backdrop" id="prefs" hidden>
-    <div class="prefs" role="dialog" aria-modal="true" aria-labelledby="prefsTitle">
+    <div class="prefs glassy" role="dialog" aria-modal="true" aria-labelledby="prefsTitle">
       <nav class="prefs-nav">
         <div class="prefs-title" id="prefsTitle">Settings</div>
-        <button class="prefs-tab on" data-tab="general"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h12"/><circle cx="7" cy="6" r="1.6"/><circle cx="13" cy="10" r="1.6"/><circle cx="9" cy="14" r="1.6"/></svg>General</button>
+        <button class="prefs-tab on" data-tab="appearance"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 0 0 14Z" class="fillish"/></svg>Appearance</button>
+        <button class="prefs-tab" data-tab="general"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h12"/><circle cx="7" cy="6" r="1.6"/><circle cx="13" cy="10" r="1.6"/><circle cx="9" cy="14" r="1.6"/></svg>General</button>
+        <button class="prefs-tab" data-tab="updates"><svg viewBox="0 0 20 20"><path d="M16 10a6 6 0 1 1-1.8-4.3M16 3.5V7h-3.5"/></svg>Updates<span class="tab-dot" id="tabUpdateDot" hidden></span></button>
         <button class="prefs-tab" data-tab="data"><svg viewBox="0 0 20 20"><ellipse cx="10" cy="5.5" rx="6" ry="2.5"/><path d="M4 5.5v9c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-9M4 10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5"/></svg>Data</button>
         <button class="prefs-tab" data-tab="about"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.2v.1"/></svg>About</button>
       </nav>
       <div class="prefs-main">
-        <section class="prefs-pane" data-pane="general">
-          <h3>Appearance</h3>
-          <div class="theme-pick" id="themePick">
-            <button data-theme="system"><span class="sw sw-sys"></span>System</button>
-            <button data-theme="light"><span class="sw sw-light"></span>Light</button>
-            <button data-theme="dark"><span class="sw sw-dark"></span>Dark</button>
+        <section class="prefs-pane" data-pane="appearance">
+          <h3>Theme</h3>
+          <div class="theme-grid" id="themeGrid"></div>
+          <div class="prefs-group" id="glassGroup" hidden>
+            <div class="prefs-row"><div><div class="row-label">Glass intensity</div><div class="row-help">Like the slider in macOS 27. Lower is clearer and easier to read.</div></div><input type="range" id="glassRange" min="0" max="100" class="mini-range"></div>
           </div>
+        </section>
+        <section class="prefs-pane" data-pane="general" hidden>
           <h3>Behaviour</h3>
           <div class="prefs-group">
-            <label class="prefs-row"><div><div class="row-label">Show activity log in sidebar</div><div class="row-help">Toggle anytime with ⌘L.</div></div><span class="switch"><input type="checkbox" id="prefShowLog"><span></span></span></label>
             <label class="prefs-row"><div><div class="row-label">Read servo automatically when plugged in</div><div class="row-help">Same as the Windows software. Skipped if you have unsaved changes.</div></div><span class="switch"><input type="checkbox" id="prefAutoRead"><span></span></span></label>
+            <label class="prefs-row"><div><div class="row-label">Show “Try Demo Mode” button</div><div class="row-help">Demo Mode is always available from the Servo menu.</div></div><span class="switch"><input type="checkbox" id="prefShowDemo"><span></span></span></label>
+          </div>
+          <h3>Activity log</h3>
+          <div class="prefs-group">
+            <label class="prefs-row"><div><div class="row-label">Show activity log in sidebar</div><div class="row-help">Toggle anytime with ⌘L.</div></div><span class="switch"><input type="checkbox" id="prefShowLog"><span></span></span></label>
+            <div class="prefs-row"><div><div class="row-label">Keep history</div><div class="row-help">Applied each time the app opens.</div></div>
+              <select id="prefRetention">
+                <option value="forever">Forever</option>
+                <option value="last1000">Last 1,000 entries</option>
+                <option value="last500">Last 500 entries</option>
+                <option value="last100">Last 100 entries</option>
+                <option value="days30">Last 30 days</option>
+                <option value="days7">Last 7 days</option>
+                <option value="session">Clear every launch</option>
+              </select>
+            </div>
+          </div>
+        </section>
+        <section class="prefs-pane" data-pane="updates" hidden>
+          <div class="update-card" id="updateCard">
+            <img src="icon.svg" alt="" class="update-logo">
+            <div class="update-main">
+              <div class="update-title" id="updTitle">Axon Servo Programmer</div>
+              <div class="update-sub" id="updSub">—</div>
+              <div class="progress" id="updProgress" hidden><span id="updBar"></span></div>
+            </div>
+            <div class="update-actions" id="updActions"></div>
+          </div>
+          <div class="notes" id="updNotes" hidden></div>
+          <h3>Automatic updates</h3>
+          <div class="prefs-group">
+            <label class="prefs-row"><div><div class="row-label">Check for updates automatically</div></div><span class="switch"><input type="checkbox" id="prefAutoUpdate"><span></span></span></label>
+            <div class="prefs-row"><div><div class="row-label">How often</div></div>
+              <select id="prefUpdateInterval"><option value="launch">Every launch</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select>
+            </div>
+            <label class="prefs-row"><div><div class="row-label">Include pre-releases</div><div class="row-help">Get new versions sooner. They may be less tested.</div></div><span class="switch"><input type="checkbox" id="prefPre"><span></span></span></label>
           </div>
         </section>
         <section class="prefs-pane" data-pane="data" hidden>
           <h3>Storage</h3>
           <div class="prefs-group">
-            <div class="prefs-row"><div><div class="row-label">Activity log</div><div class="row-help" id="prefLogInfo">—</div></div><button class="btn small" id="prefClearLog">Clear Log</button></div>
-            <div class="prefs-row"><div><div class="row-label">Cache</div><div class="row-help">Temporary files Chromium keeps. Safe to clear.</div></div><button class="btn small" id="prefClearCache">Clear Cache</button></div>
-            <div class="prefs-row"><div><div class="row-label">Servo backups</div><div class="row-help" id="prefBackupInfo">—</div></div><div class="btn-row"><button class="btn small" id="prefShowBackups">Show in Finder</button><button class="btn small danger" id="prefClearBackups">Delete All…</button></div></div>
+            <div class="prefs-row"><div><div class="row-label">Cache <span class="size" id="cacheSize">…</span></div><div class="row-help">Temporary browser-engine files and downloaded updates. Safe to clear.</div></div><button class="btn small" id="prefClearCache">Clear Cache</button></div>
+            <div class="prefs-row"><div><div class="row-label">Activity log <span class="size" id="logSize">…</span></div><div class="row-help" id="prefLogInfo">—</div></div><button class="btn small" id="prefClearLog">Clear Log…</button></div>
+            <div class="prefs-row"><div><div class="row-label">Servo backups <span class="size" id="backupSize">…</span></div><div class="row-help" id="prefBackupInfo">—</div></div><div class="btn-row"><button class="btn small" id="prefShowBackups">Show in Finder</button><button class="btn small danger" id="prefClearBackups">Delete All…</button></div></div>
+          </div>
+          <h3>Setup</h3>
+          <div class="prefs-group">
+            <div class="prefs-row"><div><div class="row-label">Welcome screen</div><div class="row-help">Show the first-launch setup again.</div></div><button class="btn small" id="prefShowWelcome">Show</button></div>
           </div>
         </section>
         <section class="prefs-pane about" data-pane="about" hidden>
           <img src="icon.svg" alt="" class="about-logo">
           <div class="about-name">Axon Servo Programmer</div>
           <div class="about-ver" id="aboutVer">Version —</div>
-          <p class="about-note">An unofficial Mac version of the Axon Servo Programming Software. Not affiliated with or endorsed by Axon. Firmware updating is intentionally not included.</p>
+          <div class="btn-row center"><button class="btn" id="aboutCheck">Check for Updates</button></div>
+          <p class="about-note">An unofficial Mac version of the Axon Servo Programming Software. Requires the Axon Servo Programmer hardware. Provided as-is, without warranty. Not affiliated with or endorsed by Axon. Firmware flashing is intentionally not included.</p>
           <div class="btn-row center">
             <button class="btn primary" id="aboutGithub"><svg viewBox="0 0 16 16" class="fill"><path d="M8 0C3.6 0 0 3.6 0 8c0 3.5 2.3 6.5 5.5 7.6.4.1.5-.2.5-.4v-1.5c-2.2.5-2.7-1-2.7-1-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.3 1.9.9 2.3.7.1-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-4 0-.9.3-1.6.8-2.1-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.2.8.6-.2 1.3-.3 2-.3s1.4.1 2 .3c1.5-1 2.2-.8 2.2-.8.4 1.1.2 1.9.1 2.1.5.6.8 1.3.8 2.1 0 3.1-1.9 3.7-3.6 3.9.3.3.5.8.5 1.5v2.2c0 .2.1.5.6.4C13.7 14.5 16 11.5 16 8c0-4.4-3.6-8-8-8Z"/></svg>View on GitHub</button>
             <button class="btn" id="aboutIssue">Report a Problem</button>

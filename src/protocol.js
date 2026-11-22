@@ -61,6 +61,25 @@
     uplProPTL: [0, 255],
   };
 
+  /*
+   * SAFETY. Only these commands can ever be sent. Firmware commands used by the
+   * Windows "UPF" tab (0x80-0x83) are deliberately absent, so this app cannot
+   * erase or flash a servo even if there were a bug elsewhere.
+   */
+  const ALLOWED_CMDS = new Set([0x91, 0x90, 0x8a, 0xcd, 0xcb, 0x5a]);
+
+  /*
+   * SAFETY. The only parameter-block bytes a write may change, per family.
+   * These are exactly the bytes the Windows software's encoders touch.
+   * Everything else (calibration, identity, unknown bytes) is always copied
+   * back unchanged from what the servo currently holds.
+   */
+  const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  const WRITABLE = {
+    AAS: new Set([...range(0x00, 0x06), 0x0a, 0x0b, 0x0c, 0x0f, 0x11, 0x12, 0x13, 0x25, ...range(0x27, 0x2c), ...range(0x35, 0x3a)]),
+    UPL: new Set([0x12, 0x25, 0x36]),
+  };
+
   // Manufacture date (0x30-0x32) and model name (0x40-0x47).
   const IDENTITY_BYTES = [0x30, 0x31, 0x32, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47];
 
@@ -207,6 +226,42 @@
     throw new ProtocolError('This servo type has no writable parameters.');
   }
 
+  /* -------------------------------------------------------------- checks */
+
+  /** Returns a reason string if a block is clearly not a valid parameter block. */
+  function hardCheck(P) {
+    if (!P || P.length !== PARAM_LEN) return 'the servo returned the wrong amount of data.';
+    const first = P[0];
+    if (P.every((b) => b === first)) return 'the servo returned blank data (every byte the same).';
+    for (let i = 0x40; i < 0x48; i++) {
+      const c = P[i];
+      if (c !== 0 && (c < 0x20 || c > 0x7e)) return 'the servo name area contains unexpected data.';
+    }
+    return null;
+  }
+
+  /**
+   * Non-fatal: things the Windows software always leaves consistent. If any
+   * are off, the servo may use a layout this app doesn't know, so the UI asks
+   * for extra confirmation before writing.
+   */
+  function softCheck(family, P) {
+    const w = [];
+    if (family !== FAMILY.AAS) return w;
+    const hi = u16(P, 0);
+    const known = [...PPM_RANGES, NB_RANGE, SSR_RANGE].map((r) => r.hi);
+    if (!known.includes(hi)) w.push('PPM range value is not one the Windows software uses');
+    if (P[4] === 0) w.push('Range is 0');
+    if (P[4] !== P[5]) w.push('the two Range bytes differ');
+    const sens = P[0x0c] >> 4;
+    if ((P[0x0c] & 0x0f) !== 0 || sens < 1 || sens > 4) w.push('Sensitivity byte is out of the usual range');
+    const damp = u16(P, P[0x26] & 0x40 ? 0x27 : 0x0a);
+    if (damp < 50 || damp > 600) w.push('Damping is outside 50–600');
+    const pwr = P[P[0x26] & 0x40 ? 0x13 : 0x12];
+    if (pwr < 100) w.push('Max Power is below 100');
+    return w;
+  }
+
   /* ----------------------------------------------------------- transport */
 
   /**
@@ -229,6 +284,8 @@
     }
 
     async _packet(cmd, addr, len, data) {
+      if (!ALLOWED_CMDS.has(cmd)) throw new ProtocolError(`Blocked command 0x${cmd.toString(16)}.`);
+      if (len > CHUNK) throw new ProtocolError('Packet too long.');
       const out = new Uint8Array(64);
       out[0] = REPORT_ID; out[1] = cmd;
       out[2] = (addr >> 8) & 0xff; out[3] = addr & 0xff; out[4] = len;
@@ -323,32 +380,63 @@
     }
 
     /**
-     * Read-modify-write exactly like the original, then read back and verify.
-     * Returns the freshly read servo state.
+     * Read-modify-write exactly like the original, with extra safety checks,
+     * then read back and verify. Returns the freshly read servo state.
+     *
+     * expect: { family, version, block } from the read the user edited. The
+     * write is refused if a different servo (or a changed one) is now plugged in.
+     * rawBlock: restore a backup; only WRITABLE bytes are taken from it.
      */
-    writeServo(settings, { rawBlock } = {}) {
+    writeServo(settings, { rawBlock, expect } = {}) {
       return this._lock(async () => {
         const id = await this._identify();
         if (!id.family) throw new ProtocolError('No servo detected.');
-        if (id.family === FAMILY.ANS) throw new ProtocolError('This servo type has no writable parameters.');
+        if (!WRITABLE[id.family]) throw new ProtocolError('This servo type has no writable parameters.');
+        if (expect && (expect.family !== id.family || expect.version !== id.version)) {
+          throw new ProtocolError('A different servo is plugged in now. Nothing was written. Read it first.');
+        }
         const current = await this._read(CMD.READ_PARAMS, 0, PARAM_LEN);
-        const next = rawBlock ? Uint8Array.from(rawBlock) : encode(id.family, current, settings);
+        const sanity = hardCheck(current);
+        if (sanity) throw new ProtocolError(`Refusing to write: ${sanity} Nothing was written.`);
+        if (expect && expect.block) {
+          for (const i of IDENTITY_BYTES) {
+            if (current[i] !== expect.block[i]) throw new ProtocolError('A different servo is plugged in now. Nothing was written. Read it first.');
+          }
+        }
+
+        let next;
+        if (rawBlock) {
+          if (rawBlock.length !== PARAM_LEN) throw new ProtocolError('Backup has the wrong size. Nothing was written.');
+          next = Uint8Array.from(current);
+          for (const i of WRITABLE[id.family]) next[i] = rawBlock[i];
+        } else {
+          next = encode(id.family, current, settings);
+        }
         if (next.length !== PARAM_LEN) throw new ProtocolError('Bad parameter block length.');
-        // Identity bytes (name/date) are never altered.
-        for (const i of IDENTITY_BYTES) next[i] = current[i];
-        await this._write(CMD.WRITE_PARAMS, 0, next);
+        // Belt and braces: anything outside the writable set must be untouched.
+        for (let i = 0; i < PARAM_LEN; i++) {
+          if (!WRITABLE[id.family].has(i) && next[i] !== current[i]) {
+            throw new ProtocolError(`Internal safety check failed (byte 0x${i.toString(16)}). Nothing was written.`);
+          }
+        }
+        let changed = 0;
+        for (let i = 0; i < PARAM_LEN; i++) if (next[i] !== current[i]) changed++;
+        if (changed) await this._write(CMD.WRITE_PARAMS, 0, next);
+
         const back = await this._read(CMD.READ_PARAMS, 0, PARAM_LEN);
         const mismatch = [];
         for (let i = 0; i < PARAM_LEN; i++) if (back[i] !== next[i]) mismatch.push(i);
         return {
           ...id, ...decodeInfo(back), block: back,
-          settings: decode(id.family, back), previous: current, mismatch,
+          settings: decode(id.family, back), previous: current, mismatch, changedBytes: changed,
         };
       });
     }
 
     factoryDefault() {
       return this._lock(async () => {
+        const id = await this._identify().catch(() => ({}));
+        if (!id.family || !WRITABLE[id.family]) throw new ProtocolError('No supported servo detected. Nothing was reset.');
         const r = await this._read(CMD.FACTORY_DEFAULT, 0, 1);
         if (r[0] !== 0xaa) throw new ProtocolError("Servo refused factory reset.");
         return true;
@@ -405,6 +493,6 @@
     VENDOR_ID, PRODUCT_ID, REPORT_ID, PARAM_LEN, CMD, FAMILY, LIMITS,
     PPM_RANGES, NB_RANGE, SSR_RANGE, LOST_PPM,
     Programmer, MockServo, ProtocolError,
-    decode, encode, decodeInfo,
+    decode, encode, decodeInfo, hardCheck, softCheck, WRITABLE, ALLOWED_CMDS, IDENTITY_BYTES,
   };
 });

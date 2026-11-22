@@ -143,6 +143,85 @@ test('restore raw backup', async () => {
   assert.deepEqual(Array.from(m.P), Array.from(backup));
 });
 
+test('SAFETY: restore never copies non-writable bytes (calibration, identity)', async () => {
+  const [m, p] = mk();
+  const backup = Uint8Array.from(m.P);
+  backup[0x50] = 0x11; backup[0x40] = 0x5a; backup[0x04] = 99; // foreign calibration + name + range
+  await p.writeServo(null, { rawBlock: backup });
+  assert.equal(m.P[0x50], 0x5a, 'calibration kept');
+  assert.equal(m.P[0x40], 'A'.charCodeAt(0), 'name kept');
+  assert.equal(m.P[0x04], 99, 'writable byte restored');
+});
+
+test('SAFETY: firmware / unknown commands can never be sent', async () => {
+  const [m, p] = mk();
+  for (const cmd of [0x80, 0x81, 0x82, 0x83, 0x00, 0xff]) {
+    await assert.rejects(p._lock(() => p._packet(cmd, 0, 1)), /Blocked command/);
+  }
+  assert.equal(m.packets.length, 0, 'nothing reached the device');
+});
+
+test('SAFETY: refuses to write if a different servo was swapped in', async () => {
+  const [m, p] = mk();
+  const s = await p.readServo();
+  const expect = { family: s.family, version: s.version, block: s.block };
+  m.P[0x41] = 'Z'.charCodeAt(0); // different servo name
+  const before = Uint8Array.from(m.P);
+  s.settings.range = 10;
+  await assert.rejects(p.writeServo(s.settings, { expect }), /different servo/);
+  assert.deepEqual(Array.from(m.P), Array.from(before), 'nothing written');
+  const [m2, p2] = mk();
+  const s2 = await p2.readServo();
+  m2.type = [3, 0x09, 0x01, 0x09]; // different firmware version
+  await assert.rejects(p2.writeServo(s2.settings, { expect: { family: s2.family, version: s2.version, block: s2.block } }), /different servo/);
+});
+
+test('SAFETY: refuses blank/garbage blocks', async () => {
+  const [m, p] = mk();
+  const s = await p.readServo();
+  m.P.fill(0xff);
+  await assert.rejects(p.writeServo(s.settings), /Refusing to write/);
+  assert.ok(m.P.every((b) => b === 0xff), 'nothing written');
+});
+
+test('SAFETY: unchanged settings send no write packet at all', async () => {
+  const [m, p] = mk();
+  const s = await p.readServo();
+  m.packets.length = 0;
+  await p.writeServo(s.settings);
+  assert.equal(m.packets.filter((x) => x[1] === 0xcb).length, 0);
+});
+
+test('SAFETY: every write only changes whitelisted bytes (fuzz)', async () => {
+  for (let k = 0; k < 300; k++) {
+    const [m, p] = mk();
+    const before = Uint8Array.from(m.P);
+    const s = (await p.readServo()).settings;
+    const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+    Object.assign(s, { range: r(-50, 400), neutral: r(-300, 300), deadband: r(-2, 9), maxPower: r(0, 400), damping: r(0, 900),
+      ppmRange: r(-1, 5), lostPPM: r(-1, 5), inversion: !!r(0, 1), softStart: !!r(0, 1), overload: !!r(0, 1),
+      narrowBand: !!r(0, 1), sanwaSSR: !!r(0, 1) });
+    s.olLevels.forEach((lv) => { lv.power = r(-10, 200); lv.time = r(-5, 60); });
+    await p.writeServo(s);
+    for (let i = 0; i < A.PARAM_LEN; i++) if (!A.WRITABLE.AAS.has(i)) assert.equal(m.P[i], before[i], `byte 0x${i.toString(16)} changed`);
+    const d = (await p.readServo()).settings;
+    assert.ok(d.range >= 1 && d.range <= 255 && d.neutral >= -127 && d.neutral <= 127 && d.damping >= 50 && d.damping <= 600 && d.maxPower >= 100);
+  }
+});
+
+test('softCheck passes on a normal block and flags odd ones', () => {
+  const m = new A.MockServo();
+  assert.deepEqual(A.softCheck('AAS', m.P), []);
+  m.P[5] = 3; m.P[0x0c] = 0x07;
+  assert.equal(A.softCheck('AAS', m.P).length, 2);
+});
+
+test('factory default refuses without a supported servo', async () => {
+  const [m, p] = mk();
+  m.present = false;
+  await assert.rejects(p.factoryDefault(), /No supported servo/);
+});
+
 test('probe follows the Windows timer rules', async () => {
   const [m, p] = mk();
   assert.equal(await p.probe(), 'AAS');
