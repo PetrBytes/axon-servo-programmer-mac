@@ -5,7 +5,7 @@ name: Release
 on:
   push:
     branches: [main]
-    paths: [package.json]
+    paths: [package.json, .github/workflows/release.yml]
   workflow_dispatch:
 
 permissions:
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   release:
-    runs-on: macos-14   # Apple Silicon
+    runs-on: macos-latest   # current Apple Silicon image
     steps:
       - uses: actions/checkout@v4
 
