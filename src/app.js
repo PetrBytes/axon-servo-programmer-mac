@@ -839,7 +839,11 @@
       case 'checking': sub = 'Checking for updates…'; break;
       case 'uptodate': sub = `You’re up to date (${st.version}) · checked ${ago(u.checkedAt || Date.now())}`; btn('Check Now', '', checkUpdates); break;
       case 'idle': sub = `Version ${st.version} · checks automatically when the app opens`; btn('Check for Updates', '', checkUpdates); break;
-      case 'error': sub = `Couldn’t check: ${u.error}`; btn('Try Again', '', checkUpdates); break;
+      case 'error':
+        if (u.phase === 'download' && info) { sub = `Download failed: ${u.error}`; btn('Try Again', '', async () => { await native.update.download(); }); }
+        else if (u.phase === 'install') { sub = `Couldn’t install: ${u.error}`; btn('Try Again', '', checkUpdates); }
+        else { sub = `Couldn’t check: ${u.error}`; btn('Try Again', '', checkUpdates); }
+        break;
       case 'available':
         btn('Download & Install', 'primary', async () => { await native.update.download(); });
         btn('Skip This Version', 'subtle', async () => { await native.update.skip(info.version); });

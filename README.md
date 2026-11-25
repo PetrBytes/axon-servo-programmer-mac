@@ -114,6 +114,8 @@ The byte layout of the parameter block is documented in [`src/protocol.js`](src/
 - `scripts/mkudzo.py` – builds a compressed `.dmg` on Linux (`zlib` or `bzip2`)
 
 ## Changelog
+**1.4.2** – Fixed in-app updates failing with `ENOTEMPTY` when the update download started while the launch tidy-up was still deleting the previous update's files. Download errors are now labelled as download errors instead of "Couldn’t check".
+
 **1.4.1** – Factory reset disabled for UPL servos (as in Windows), ProPTL shown in seconds, overload times rounded to 0.1 s like Windows, Lose PPM Protection moved to Power and the settings Windows doesn't show moved into a collapsed *Advanced signal settings* section.
 
 **1.4.0** – Update check on every launch plus periodic re-checks, confirm-and-result feedback for Clear Cache/Log/Backups, automatic cleanup of update leftovers and large caches, press ⌘Q twice to quit, no white flash on launch, new scrollbar, centred overload values.

@@ -276,8 +276,8 @@ ipcMain.handle('cache:size', () => cacheSize());
 /* Automatic tidy-up at launch: leftovers from updates and an oversized cache. */
 const CACHE_AUTO_CLEAR_BYTES = 150 * 1024 * 1024;
 async function cleanupOnLaunch() {
-  // 1. Downloaded update DMGs / staged apps from a previous update.
-  await fs.rm(updater.workDir(), { recursive: true, force: true });
+  // 1. Downloaded update DMGs / staged apps from a previous update (never throws).
+  await updater.clean();
   // 2. Any old app copy the swap helper couldn't remove.
   const bundle = path.resolve(process.execPath, '..', '..', '..');
   if (bundle.endsWith('.app')) {
@@ -300,7 +300,7 @@ ipcMain.handle('cache:clear', async () => {
   await ses.clearCache();
   try { await ses.clearCodeCaches({}); } catch { /* older Electron */ }
   await ses.clearStorageData({ storages: ['cachestorage', 'shadercache', 'serviceworkers'] });
-  await fs.rm(updater.workDir(), { recursive: true, force: true });
+  await updater.clean(); // keeps a download that's in progress or ready to install
   const after = await cacheSize();
   return { before, after, freed: Math.max(0, before - after) };
 });
@@ -391,7 +391,7 @@ const setUpdate = (patch) => { updateState = { ...updateState, ...patch }; pushU
 
 async function checkForUpdates({ manual = false } = {}) {
   if (['checking', 'downloading', 'installing'].includes(updateState.status)) return updateState;
-  setUpdate({ status: 'checking', error: null });
+  setUpdate({ status: 'checking', error: null, phase: null });
   try {
     const info = await updater.check(net.fetch, app.getVersion(), { includePrerelease: settings.includePrerelease, arch: process.arch });
     settings.lastUpdateCheck = Date.now();
@@ -400,7 +400,7 @@ async function checkForUpdates({ manual = false } = {}) {
     if (updateState.file && updateState.info && info && updateState.info.version === info.version) return setUpdate({ status: 'ready', info });
     return setUpdate({ status: info ? 'available' : 'uptodate', info, checkedAt: Date.now() });
   } catch (e) {
-    return setUpdate({ status: 'error', error: e.message });
+    return setUpdate({ status: 'error', phase: 'check', error: e.message });
   }
 }
 
@@ -423,7 +423,7 @@ ipcMain.handle('update:download', async () => {
   const info = updateState.info;
   if (!info) throw new Error('No update to download.');
   if (updateState.status === 'downloading') return updateState;
-  setUpdate({ status: 'downloading', progress: 0, error: null });
+  setUpdate({ status: 'downloading', progress: 0, error: null, phase: null });
   try {
     let lastSent = 0;
     const file = await updater.download(net.fetch, info, (got, total) => {
@@ -432,7 +432,7 @@ ipcMain.handle('update:download', async () => {
     });
     return setUpdate({ status: 'ready', file, progress: 1 });
   } catch (e) {
-    return setUpdate({ status: 'error', error: e.message });
+    return setUpdate({ status: 'error', phase: 'download', error: e.message });
   }
 });
 ipcMain.handle('update:install', async () => {
@@ -454,7 +454,7 @@ ipcMain.handle('update:install', async () => {
       const dest = await updater.openManually(file, app.getPath('downloads'), shell.openPath);
       return setUpdate({ status: 'manual', error: e.manual ? null : e.message, manualPath: dest });
     } catch (e2) {
-      return setUpdate({ status: 'error', error: e2.message });
+      return setUpdate({ status: 'error', phase: 'install', error: e2.message });
     }
   }
 });

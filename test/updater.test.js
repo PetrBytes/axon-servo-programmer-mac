@@ -51,3 +51,25 @@ test('swap script is valid bash', () => {
   fs.writeFileSync(f, U.SWAP_SCRIPT);
   execFileSync('bash', ['-n', f]);
 });
+
+test('download works while the launch cleanup is still deleting old update files', async () => {
+  const fs = require('fs'); const os = require('os'); const path = require('path');
+  const saved = process.env.TMPDIR;
+  process.env.TMPDIR = fs.mkdtempSync(path.join(os.tmpdir(), 'axon-upd-test-'));
+  try {
+    // Leftover staged app from a previous update, with plenty of files.
+    const res = path.join(U.workDir(), 'staged', 'Axon Servo Programmer.app', 'Contents', 'Resources');
+    fs.mkdirSync(res, { recursive: true });
+    for (let i = 0; i < 400; i++) fs.writeFileSync(path.join(res, `f${i}`), 'x');
+    const body = Buffer.from('dmg-bytes');
+    const fakeFetch = async () => new Response(body, { status: 200, headers: { 'content-length': String(body.length) } });
+    const update = { version: '9.9.9', asset: { name: 'Axon-9.9.9.dmg', url: 'x', size: body.length } };
+    const [, file] = await Promise.all([U.clean(), U.download(fakeFetch, update)]);
+    assert.equal(fs.readFileSync(file, 'utf8'), 'dmg-bytes');
+    await U.clean(); // must keep the active download
+    assert.ok(fs.existsSync(file));
+    assert.ok(!fs.existsSync(path.join(U.workDir(), 'staged')), 'old leftovers removed');
+  } finally {
+    process.env.TMPDIR = saved;
+  }
+});

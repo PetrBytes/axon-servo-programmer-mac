@@ -89,6 +89,34 @@ const run = (cmd, args, opts = {}) => new Promise((resolve, reject) => {
 
 function workDir() { return path.join(os.tmpdir(), 'axon-programmer-update'); }
 
+/*
+ * Each download gets its own fresh folder inside workDir(), so a new download
+ * never has to delete anything first. Old folders are removed by clean(),
+ * which never throws and never touches the folder currently in use.
+ * (1.4.0 deleted workDir() before downloading; if the launch tidy-up was still
+ * deleting the same folder, the two clashed with ENOTEMPTY.)
+ */
+let activeDir = null;
+const RM_OPTS = { recursive: true, force: true, maxRetries: 5, retryDelay: 200 };
+
+async function clean() {
+  const root = workDir();
+  let entries = [];
+  try { entries = await fsp.readdir(root); } catch { return; }
+  await Promise.all(entries.map(async (name) => {
+    const full = path.join(root, name);
+    if (activeDir && full === activeDir) return;
+    try { await fsp.rm(full, RM_OPTS); } catch { /* best effort; retried next launch */ }
+  }));
+}
+
+async function freshDir() {
+  const dir = path.join(workDir(), `dl-${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2, 8)}`);
+  await fsp.mkdir(dir, { recursive: true });
+  activeDir = dir;
+  return dir;
+}
+
 async function check(fetchImpl, current, opts) {
   const res = await fetchImpl(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=30`, {
     headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'AxonServoProgrammer' },
@@ -99,9 +127,8 @@ async function check(fetchImpl, current, opts) {
 }
 
 async function download(fetchImpl, update, onProgress) {
-  const dir = workDir();
-  await fsp.rm(dir, { recursive: true, force: true });
-  await fsp.mkdir(dir, { recursive: true });
+  const dir = await freshDir();
+  clean().catch(() => {}); // remove older downloads in the background
   const file = path.join(dir, path.basename(update.asset.name).replace(/[^A-Za-z0-9._-]/g, '_'));
   const res = await fetchImpl(update.asset.url, { headers: { 'User-Agent': 'AxonServoProgrammer' } });
   if (!res.ok || !res.body) throw new Error(`Download failed (HTTP ${res.status}).`);
@@ -142,11 +169,12 @@ async function plistValue(plist, key) {
  * Nothing in the installed app is touched here.
  */
 async function stage(dmgFile, expectedVersion) {
-  const dir = workDir();
+  const dir = path.dirname(dmgFile); // the download's own folder
+  activeDir = dir;
   const mnt = path.join(dir, 'mnt');
   const stagedDir = path.join(dir, 'staged');
   await fsp.mkdir(mnt, { recursive: true });
-  await fsp.rm(stagedDir, { recursive: true, force: true });
+  await fsp.rm(stagedDir, RM_OPTS);
   await fsp.mkdir(stagedDir, { recursive: true });
   await run('/usr/bin/hdiutil', ['attach', dmgFile, '-nobrowse', '-readonly', '-noautoopen', '-mountpoint', mnt]);
   try {
@@ -186,7 +214,7 @@ open "$TARGET"
 
 /** Launch the swap helper. Caller must quit the app right after. */
 async function scheduleSwap(staged, target, pid) {
-  const script = path.join(workDir(), 'swap.sh');
+  const script = path.join(path.dirname(path.dirname(staged)), 'swap.sh');
   await fsp.writeFile(script, SWAP_SCRIPT, { mode: 0o755 });
   const child = spawn('/bin/bash', [script, String(pid), target, staged], { detached: true, stdio: 'ignore' });
   child.unref();
@@ -202,5 +230,5 @@ async function openManually(dmgFile, downloadsDir, openPath) {
 
 module.exports = {
   OWNER, REPO, parseVersion, compareVersions, pickAsset, pickRelease,
-  check, download, currentBundle, stage, scheduleSwap, openManually, workDir, SWAP_SCRIPT,
+  check, download, currentBundle, stage, scheduleSwap, openManually, workDir, clean, SWAP_SCRIPT,
 };
