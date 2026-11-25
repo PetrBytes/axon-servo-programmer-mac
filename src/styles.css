@@ -248,6 +248,12 @@ svg .fillish { fill: currentColor; stroke: none; opacity: .5; }
 .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px 6px; contain: layout paint; }
 .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin: 0 0 4px; font-weight: 650; }
 .card.wide { grid-column: 1 / -1; }
+.card details.adv > summary { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin: 0 0 10px; font-weight: 650; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+.card details.adv > summary::-webkit-details-marker { display: none; }
+.card details.adv > summary::before { content: '›'; font-size: 15px; line-height: 1; transition: transform .15s; }
+.card details.adv[open] > summary::before { transform: rotate(90deg); }
+.card details.adv:not([open]) > summary { margin-bottom: 10px; }
+.adv-note { font-size: 12.5px; color: var(--muted); margin: -4px 0 4px; }
 
 .row { padding: 11px 0; border-top: 1px solid var(--line); }
 .row:first-of-type { border-top: 0; }
@@ -409,3 +415,4 @@ select { height: 28px; border-radius: 7px; border: 1px solid var(--line); backgr
 .quit-hint { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 60; background: rgba(28, 28, 30, .92); color: #fff; padding: 14px 22px; border-radius: 14px; font-size: 15px; font-weight: 600; box-shadow: 0 16px 50px rgba(0, 0, 0, .35); animation: pop .15s ease-out; pointer-events: none; transition: opacity .2s; }
 .quit-hint.out { opacity: 0; }
 .quit-hint kbd { font: 600 14px var(--mono); background: rgba(255, 255, 255, .16); padding: 2px 7px; border-radius: 6px; margin: 0 2px; }
+.adv-note + .row { border-top: 0; }

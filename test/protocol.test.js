@@ -233,3 +233,24 @@ test('probe follows the Windows timer rules', async () => {
   const [, pa] = mk({ family: 'ANS' });
   assert.equal(await pa.probe(), null);
 });
+
+test('SAFETY: factory reset is refused for UPL servos', async () => {
+  const [m, p] = mk({ family: 'UPL' });
+  const before = Uint8Array.from(m.P);
+  await assert.rejects(p.factoryDefault(), /isn't available for UPL/);
+  assert.ok(!m.packets.some((x) => x[1] === A.CMD.FACTORY_DEFAULT), 'no factory packet sent');
+  assert.deepEqual(Array.from(m.P), Array.from(before));
+});
+
+test('overload times show to 0.1 s like Windows, and unedited bytes are kept', async () => {
+  const [m, p] = mk();
+  m.P[0x36] = 50; m.P[0x38] = 80; m.P[0x3a] = 100;
+  const s = (await p.readServo()).settings;
+  assert.deepEqual(s.olLevels.map((l) => l.time), [5.1, 8.2, 10.2]);
+  s.range = 200; await p.writeServo(s);
+  assert.deepEqual([m.P[0x36], m.P[0x38], m.P[0x3a]], [50, 80, 100]);
+  // Every raw byte still has its own displayed value.
+  const seen = new Set();
+  for (let b = 0; b < 256; b++) { m.P[0x36] = b; seen.add((await p.readServo()).settings.olLevels[0].time); }
+  assert.equal(seen.size, 256);
+});

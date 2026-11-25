@@ -80,6 +80,12 @@
     UPL: new Set([0x12, 0x25, 0x36]),
   };
 
+  /*
+   * SAFETY. Families the Windows software lets you factory-reset. Its Default
+   * button is greyed out for UPL servos, so this app refuses too.
+   */
+  const FACTORY_RESET = new Set([FAMILY.AAS]);
+
   // Manufacture date (0x30-0x32) and model name (0x40-0x47).
   const IDENTITY_BYTES = [0x30, 0x31, 0x32, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47];
 
@@ -89,7 +95,9 @@
   const put16 = (p, i, v) => { p[i] = (v >> 8) & 0xff; p[i + 1] = v & 0xff; };
 
   const olPowerOf = (b) => Math.round(((b * 100) / 255) * 10) / 10; // %
-  const olTimeOf = (b) => Math.round(b * 0.102 * 1000) / 1000; // seconds
+  // Seconds, rounded to 0.1 s like the Windows software. Raw steps are 0.102 s, so
+  // every raw byte still maps to a different displayed value.
+  const olTimeOf = (b) => Math.round(b * 0.102 * 10) / 10;
 
   class ProtocolError extends Error {}
 
@@ -437,6 +445,7 @@
       return this._lock(async () => {
         const id = await this._identify().catch(() => ({}));
         if (!id.family || !WRITABLE[id.family]) throw new ProtocolError('No supported servo detected. Nothing was reset.');
+        if (!FACTORY_RESET.has(id.family)) throw new ProtocolError(`Factory reset isn't available for ${id.family} servos (the Windows software doesn't allow it either). Nothing was reset.`);
         const r = await this._read(CMD.FACTORY_DEFAULT, 0, 1);
         if (r[0] !== 0xaa) throw new ProtocolError("Servo refused factory reset.");
         return true;
@@ -493,6 +502,6 @@
     VENDOR_ID, PRODUCT_ID, REPORT_ID, PARAM_LEN, CMD, FAMILY, LIMITS,
     PPM_RANGES, NB_RANGE, SSR_RANGE, LOST_PPM,
     Programmer, MockServo, ProtocolError,
-    decode, encode, decodeInfo, hardCheck, softCheck, WRITABLE, ALLOWED_CMDS, IDENTITY_BYTES,
+    decode, encode, decodeInfo, hardCheck, softCheck, WRITABLE, FACTORY_RESET, ALLOWED_CMDS, IDENTITY_BYTES,
   };
 });

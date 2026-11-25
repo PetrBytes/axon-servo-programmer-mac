@@ -1,7 +1,7 @@
 {
   "name": "axon-servo-programmer",
   "productName": "Axon Servo Programmer",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Mac programmer for Axon servos (unofficial)",
   "main": "main.js",
   "license": "MIT",

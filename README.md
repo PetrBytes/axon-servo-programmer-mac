@@ -14,7 +14,7 @@ Axon servos are popular in FIRST Tech Challenge (FTC) because they are strong, p
 - A Mac with **Apple Silicon** (M1 or newer) running macOS 11 or later.
 
 ## Compatibility
-- Works with the original Axon Servo Programmer (USB ID `0471:13AA`), the one used with Axon's Windows software v1.0.5, and the servos that software can program (it detects them as **AAS** or **UPL** types).
+- Works with the original Axon Servo Programmer (USB ID `0471:13AA`), the one used with Axon's Windows software v1.0.5, and the servos that software can program (it detects them as **AAS** or **UPL** types). Tested against the Windows software with an original Axon MINI, which reads as AAS with the full settings page, and an original Axon MAX, which reads as UPL with only Inversion, PWM Power and ProPTL. Both apps show the same settings and values.
 - **Axon MK2** (the newer MK2 programmer and MINI/MAX MK2 servos) uses Axon's separate "Software MK2". It hasn't been tested with this app. If an MK2 programmer has a different USB ID, the app simply won't see it and won't touch it.
 - Switching a servo between standard and continuous-rotation mode needs a **firmware flash**, which this app deliberately does not do. Use Axon's Windows software for that.
 
@@ -23,6 +23,7 @@ The app is built so it can't brick a servo:
 - Firmware commands are blocked at the lowest level; only read, write-settings, identify and factory-default commands can ever be sent.
 - A write only changes the same bytes the Windows software changes. Calibration and identity bytes are always copied back unchanged.
 - Writes are refused if a different servo was plugged in since it was read, or if the servo's data looks blank or corrupted.
+- **Default (Factory)** only works on AAS servos. The Windows software greys it out for UPL servos, so this app does too.
 - Every write is read back and verified, and a backup is saved every time a servo is read.
 
 ## Features
@@ -45,11 +46,12 @@ The app is built so it can't brick a servo:
 | Sensitivity (Deadband) | Sensitivity | Ultra High / High / Medium / Low |
 | Max Power / PWM Power % | Max Power | 100–255, shown as % |
 | Damping Factor | Damping Factor | 50–600 |
-| PPM Range | PPM Range | 500~2500 / 900~2100 / 1100~1900 µs |
+| PPM Range | PPM Range | 500~2500 / 900~2100 / 1100~1900 µs, under *Advanced signal settings* |
 | Lose PPM Protection | Lose PPM Protection | Release / Keep Position / Go Neutral Position |
-| Narrow Band, SANWA SSR | Narrow Band, SANWA SSR | Rescale Range when toggled, like Windows |
+| Narrow Band, SANWA SSR | Narrow Band, SANWA SSR | Rescale Range when toggled, like Windows; under *Advanced signal settings* |
 | Inversion, Soft Start | Inversion, Soft Start | |
-| Over Load Protection, Level 1–3 | Over Load Protection | PWM % and time per level |
+| Over Load Protection, Level 1–3 | Over Load Protection | PWM % and time per level (0.1 s, like Windows) |
+| ProPTL (UPL servos) | ProPTL | 0–255, shown in seconds (30 = 3.0 s) |
 | Default | Default (Factory) | |
 
 Firmware updating is intentionally **not** included.
@@ -112,6 +114,8 @@ The byte layout of the parameter block is documented in [`src/protocol.js`](src/
 - `scripts/mkudzo.py` – builds a compressed `.dmg` on Linux (`zlib` or `bzip2`)
 
 ## Changelog
+**1.4.1** – Factory reset disabled for UPL servos (as in Windows), ProPTL shown in seconds, overload times rounded to 0.1 s like Windows, Lose PPM Protection moved to Power and the settings Windows doesn't show moved into a collapsed *Advanced signal settings* section.
+
 **1.4.0** – Update check on every launch plus periodic re-checks, confirm-and-result feedback for Clear Cache/Log/Backups, automatic cleanup of update leftovers and large caches, press ⌘Q twice to quit, no white flash on launch, new scrollbar, centred overload values.
 
 **1.3.0** – Big CPU/GPU/memory reduction (static theme backgrounds, no live blur, Chromium features trimmed), background polling backoff, snappier UI, button wrapping fix, releases now built and published automatically by GitHub Actions.

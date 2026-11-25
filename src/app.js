@@ -134,6 +134,8 @@
 
   /* -------------------------------------------------------------- schema */
   const pctOf = (v) => `${(Math.round((v * 1000) / 255) / 10).toFixed(1)} %`;
+  // ProPTL is stored in tenths of a second (raw 30 shows as 3.0 s in the Windows software).
+  const secOf = (v) => `${(v / 10).toFixed(1)} s`;
   const SENS = ['Ultra High', 'High', 'Medium', 'Low'];
   const PPM_LABELS = ['500~2500 µs', '900~2100 µs', '1100~1900 µs'];
   const LOST = ['Release', 'Keep Position', 'Go Neutral Position'];
@@ -149,10 +151,11 @@
       { key: 'maxPower', label: 'Max Power', win: 'PWM Power', help: 'Maximum motor drive. Lower it to reduce current draw, heat and brownouts.', type: 'slider', min: 100, max: 255, fmt: pctOf },
       { key: 'damping', label: 'Damping Factor', help: 'How strongly the servo slows down as it reaches the target. Higher = softer stop.', type: 'slider', min: 50, max: 600 },
       { key: 'softStart', label: 'Soft Start', help: 'Moves slowly to position at power-up instead of snapping.', type: 'switch' },
-    ] },
-    { title: 'Signal', rows: [
-      { key: 'ppmRange', label: 'PPM Range', help: 'The pulse width the servo treats as full travel. Match it to what your controller sends. In FTC, REV hubs output about 600~2400 µs by default and can be changed in code with ServoImplEx.setPwmRange().', type: 'seg', options: PPM_LABELS, disabledWhen: (s) => s.narrowBand || s.sanwaSSR },
       { key: 'lostPPM', label: 'Lose PPM Protection', help: 'What the servo does if the signal stops (e.g. robot disabled or cable unplugged).', type: 'select', options: LOST },
+    ] },
+    // Axon's Windows software doesn't show these for current Axon servos, so they start collapsed.
+    { title: 'Advanced signal settings', collapsed: true, note: 'Axon’s Windows software doesn’t show these settings. Leave them alone unless you know you need them.', rows: [
+      { key: 'ppmRange', label: 'PPM Range', help: 'The pulse width the servo treats as full travel. Match it to what your controller sends. In FTC, REV hubs output about 600~2400 µs by default and can be changed in code with ServoImplEx.setPwmRange().', type: 'seg', options: PPM_LABELS, disabledWhen: (s) => s.narrowBand || s.sanwaSSR },
       { key: 'narrowBand', label: 'Narrow Band', win: '450~1050 µs', help: 'For narrow-band receivers. Not used in FTC. Halves Range when switched on, like the Windows software.', type: 'switch', disabledWhen: (s) => s.sanwaSSR },
       { key: 'sanwaSSR', label: 'SANWA SSR', win: '130~470 µs', help: 'Sanwa Super Response mode. Not used in FTC. Rescales Range when switched on, like the Windows software.', type: 'switch', disabledWhen: (s) => s.narrowBand },
     ] },
@@ -162,7 +165,7 @@
     { title: 'Parameters', rows: [
       { key: 'inversion', label: 'Inversion', help: 'Reverses the direction of rotation.', type: 'switch' },
       { key: 'maxPower', label: 'Max Power', help: 'Maximum motor drive.', type: 'slider', min: 100, max: 255, fmt: pctOf },
-      { key: 'proPTL', label: 'ProPTL', help: 'Protection threshold for this servo family (as in the Windows UPL tab).', type: 'slider', min: 0, max: 255 },
+      { key: 'proPTL', label: 'ProPTL', help: 'Protection time, shown in seconds like the Windows software.', type: 'slider', min: 0, max: 255, fmt: secOf },
     ] },
   ];
   const LABELS = {
@@ -250,6 +253,7 @@
     if (key === 'lostPPM') return LOST[v] ?? v;
     if (key === 'deadband') return SENS[v] ?? v;
     if (key === 'maxPower') return `${v} (${pctOf(v)})`;
+    if (key === 'proPTL') return secOf(v);
     if (typeof v === 'boolean') return v ? 'On' : 'Off';
     return String(v);
   }
@@ -357,7 +361,7 @@
   }
 
   const olP = (b) => Math.round(((b * 100) / 255) * 10) / 10;
-  const olT = (b) => Math.round(b * 0.102 * 1000) / 1000;
+  const olT = (b) => Math.round(b * 0.102 * 10) / 10; // matches protocol olTimeOf
   function buildOverload() {
     const wrap = el('div');
     wrap.appendChild(buildRow({ key: 'overload', label: 'Over Load Protection', help: 'When the servo stays stalled, power is cut back in three stages to protect the motor. Each level applies after its time.', type: 'switch' }));
@@ -372,7 +376,7 @@
     for (let i = 0; i < 3; i++) {
       const tr = document.createElement('tr');
       const p = Object.assign(document.createElement('input'), { type: 'number', className: 'num', min: 0, max: 100, step: 0.1 });
-      const s = Object.assign(document.createElement('input'), { type: 'number', className: 'num', min: 0, max: 26, step: 0.102 });
+      const s = Object.assign(document.createElement('input'), { type: 'number', className: 'num', min: 0, max: 26, step: 0.1 });
       const commit = () => {
         const lv = st.form.olLevels[i];
         let pv = Number(p.value); if (!Number.isFinite(pv)) pv = lv.power;
@@ -401,9 +405,17 @@
     form.innerHTML = '';
     for (const sec of family === A.FAMILY.UPL ? UPL : AAS) {
       const card = el('section', `card${sec.wide ? ' wide' : ''}`);
-      card.appendChild(el('h2', '', sec.title));
-      if (sec.custom === 'overload') card.appendChild(buildOverload());
-      else sec.rows.forEach((r) => card.appendChild(buildRow(r)));
+      let box = card;
+      if (sec.collapsed) {
+        box = Object.assign(document.createElement('details'), { className: 'adv' });
+        box.appendChild(el('summary', '', sec.title));
+        if (sec.note) box.appendChild(el('div', 'adv-note', sec.note));
+        card.appendChild(box);
+      } else {
+        card.appendChild(el('h2', '', sec.title));
+      }
+      if (sec.custom === 'overload') box.appendChild(buildOverload());
+      else sec.rows.forEach((r) => box.appendChild(buildRow(r)));
       form.appendChild(card);
     }
     rowCache = Array.from(form.querySelectorAll('.row'));
@@ -424,6 +436,7 @@
     const changes = diff(st.base, st.form);
     const keys = new Set(changes.map((c) => (c.key.startsWith('ol') ? 'olLevels' : c.key)));
     rowCache.forEach((row) => row.classList.toggle('changed', keys.has(row.dataset.key)));
+    document.querySelectorAll('#form details.adv').forEach((d) => { if (d.querySelector('.row.changed')) d.open = true; });
     const n = changes.length;
     $('writeBadge').hidden = n === 0;
     $('writeBadge').textContent = n;
@@ -439,7 +452,9 @@
     $('btnRead').disabled = !connected || st.busy;
     $('btnWrite').disabled = !loaded || !d || st.busy || !st.present;
     $('btnRevert').disabled = !d || st.busy;
-    $('btnFactory').disabled = !loaded || st.busy || !st.present;
+    const canReset = loaded && A.FACTORY_RESET.has(st.servo.family);
+    $('btnFactory').disabled = !canReset || st.busy || !st.present;
+    $('btnFactory').title = loaded && !canReset ? `Not available for ${st.servo.family} servos (greyed out in the Windows software too)` : '';
     $('btnProfileSave').disabled = !loaded;
     $('btnProfileOpen').disabled = st.busy;
     $('btnRestore').disabled = st.busy;
@@ -712,6 +727,7 @@
 
   async function factoryReset() {
     if (!st.prog || !st.servo || !st.present) return;
+    if (!A.FACTORY_RESET.has(st.servo.family)) { toast(`Factory reset isn’t available for ${st.servo.family} servos.`, 'warn', { quiet: true }); return; }
     const ok = await native.confirm({ message: `Reset ${st.servo.name || 'this servo'} to factory defaults?`, detail: 'This is the Windows “Default” button. All custom settings on the servo are replaced. A backup of the current settings was saved when it was read.', ok: 'Reset', destructive: true });
     if (!ok) return;
     try {
@@ -739,6 +755,8 @@
     const next = clone(st.base);
     for (const k of Object.keys(next)) if (k in d.settings && typeof d.settings[k] === typeof next[k]) next[k] = clone(d.settings[k]);
     if (!Array.isArray(next.olLevels) || next.olLevels.length !== 3) next.olLevels = clone(st.base.olLevels);
+    // Profiles from 1.4.0 and earlier stored times like 8.16; snap them to the 0.1 s display.
+    next.olLevels.forEach((lv) => { if (Number.isFinite(lv.time)) lv.time = olT(Math.round(lv.time / 0.102)); });
     st.form = next;
     refresh();
     toast(`Loaded ${res.name}. Review the changes, then press Write.`, 'ok');
